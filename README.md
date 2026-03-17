@@ -7,7 +7,7 @@ A configuration-driven LLM compression framework using low-rank factorization an
 | Category | Options |
 |----------|---------|
 | **Compression Algorithms** | SVD, Tucker, CP (CANDECOMP/PARAFAC), Tensor Train, Weight Pruning |
-| **Rank Selection Criteria** | Activation-informed ([ASVD](https://github.com/hahnyuan/ASVD4LLM), [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM)), [Information Flow](https://github.com/OFSkean/information_flow), Entropy, Fisher Information, Stable Rank |
+| **Rank Selection Criteria** | Activation-informed ([ASVD](https://github.com/hahnyuan/ASVD4LLM), [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM)), [information_flow](https://github.com/OFSkean/information_flow), Entropy, Fisher Information, Stable Rank |
 | **Algebra Backends** | [CoLA](https://github.com/wilson-labs/cola) (Lanczos, LOBPCG), PyTorch, [TensorLy](https://github.com/tensorly/tensorly) |
 | **Target Layers** | MLP projections, Attention (Q/K/V/O), Embeddings |
 | **Evaluation** | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, perplexity, memory profiling |
@@ -141,3 +141,11 @@ toggle/
 │       └── models/        # Model utilities
 └── tests/                 # Unit, integration, and e2e tests
 ```
+
+## Documentation
+
+- [Remote Runs Guide](docs/remote_runs.md) — Instructions for running on GPU servers
+
+## License
+
+MIT
