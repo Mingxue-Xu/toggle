@@ -1,6 +1,6 @@
 # Remote Runs Guide
 
-Instructions for running Toggle compression scripts on remote GPU servers (H100 80GB VRAM or equivalent).
+Instructions for running Toggle compression scripts on remote GPU servers (H200 140GB VRAM or equivalent).
 
 ---
 
@@ -29,39 +29,39 @@ cd /path/to/toggle
 
 ---
 
-## 1. GPU Runs (H100 Optimized)
+## 1. GPU Runs (H200 Optimized)
 
 Scripts location: `scripts/examples/gpu/` and `scripts/bash/gpu/`
 
 ### 1.1 Quick Start: Run All Compression Strategies
 
 ```bash
-./scripts/bash/gpu/h100_run_all.sh
+./scripts/bash/gpu/h200_run_all.sh
 ```
 
 ### 1.2 Individual Compression Method Runs
 
 | Method | Command |
 |--------|---------|
-| Activation SVD | `./scripts/bash/gpu/h100_activation_svd.sh` |
-| Tucker decomposition | `./scripts/bash/gpu/h100_tucker.sh` |
-| CP decomposition | `./scripts/bash/gpu/h100_cp.sh` |
-| Tensor-Train | `./scripts/bash/gpu/h100_tensor_train.sh` |
-| Weight pruning | `./scripts/bash/gpu/h100_weight_pruning.sh` |
-| Entropy-based SVD | `./scripts/bash/gpu/h100_entropy_svd.sh` |
-| MI hybrid | `./scripts/bash/gpu/h100_hybrid_mi.sh` |
+| Activation SVD | `./scripts/bash/gpu/h200_activation_svd.sh` |
+| Tucker decomposition | `./scripts/bash/gpu/h200_tucker.sh` |
+| CP decomposition | `./scripts/bash/gpu/h200_cp.sh` |
+| Tensor-Train | `./scripts/bash/gpu/h200_tensor_train.sh` |
+| Weight pruning | `./scripts/bash/gpu/h200_weight_pruning.sh` |
+| Entropy-based SVD | `./scripts/bash/gpu/h200_entropy_svd.sh` |
+| MI hybrid | `./scripts/bash/gpu/h200_hybrid_mi.sh` |
 
 ### 1.3 Full Pipeline Runs by Model Tier
 
 ```bash
 # Mid-size models (8B-9B) - Quick validation
-./scripts/bash/gpu/h100_full_pipeline.sh --tier mid
+./scripts/bash/gpu/h200_full_pipeline.sh --tier mid
 
 # Large models (14B-27B) - Main results
-./scripts/bash/gpu/h100_full_pipeline.sh --tier large
+./scripts/bash/gpu/h200_full_pipeline.sh --tier large
 
 # Flagship models (70B+) - Paper highlights
-./scripts/bash/gpu/h100_full_pipeline.sh --tier flagship
+./scripts/bash/gpu/h200_full_pipeline.sh --tier flagship
 ```
 
 ### 1.4 ASVD/SVD-LLM Pipeline
@@ -234,11 +234,11 @@ MI-guided method selection (SVD vs Tucker):
 
 ## 3. Model Memory Requirements
 
-| Model | FP16 Size | Fits in 80GB | Notes |
-|-------|-----------|--------------|-------|
-| Llama-3.1-70B | ~140GB | No | Requires multi-GPU or offloading |
-| Qwen2.5-72B | ~144GB | No | Requires multi-GPU or offloading |
-| Mixtral-8x7B | ~90GB | Marginal | Use gradient checkpointing |
+| Model | FP16 Size | Fits in 140GB | Notes |
+|-------|-----------|---------------|-------|
+| Llama-3.1-70B | ~140GB | Yes (tight) | May need activation offloading |
+| Qwen2.5-72B | ~144GB | Marginal | Use gradient checkpointing |
+| Mixtral-8x7B | ~90GB | Yes | Comfortable headroom |
 | Gemma-2-27B | ~54GB | Yes | Comfortable headroom |
 | Llama-3.1-8B / Qwen2.5-14B / Gemma-2-9B | ~16-28GB | Yes | Can run multiple experiments |
 
@@ -250,20 +250,20 @@ MI-guided method selection (SVD vs Tucker):
 scripts/
 ├── examples/
 │   ├── cpu/              # CPU-only scripts (small models: 0.5B-2B)
-│   ├── gpu/              # H100 GPU scripts (large models: 8B-70B+)
+│   ├── gpu/              # H200 GPU scripts (large models: 8B-70B+)
 │   │   ├── benchmark_reproducibility.py
 │   │   ├── asvd_svdllm_pipeline.py
 │   │   ├── memory_profiling.py
 │   │   ├── perplexity_evaluation.py
 │   │   ├── comparison_baseline_compressed.py
-│   │   ├── h100_activation_svd.py
-│   │   ├── h100_tucker.py
-│   │   ├── h100_cp.py
-│   │   ├── h100_tensor_train.py
-│   │   ├── h100_weight_pruning.py
-│   │   ├── h100_entropy_svd.py
-│   │   ├── h100_hybrid_mi.py
-│   │   ├── h100_full_pipeline.py
+│   │   ├── h200_activation_svd.py
+│   │   ├── h200_tucker.py
+│   │   ├── h200_cp.py
+│   │   ├── h200_tensor_train.py
+│   │   ├── h200_weight_pruning.py
+│   │   ├── h200_entropy_svd.py
+│   │   ├── h200_hybrid_mi.py
+│   │   ├── h200_full_pipeline.py
 │   │   └── profile_compressed.py
 │   └── third-party/      # Third-party integration scripts
 │       ├── cola_vs_torch_benchmark.py
@@ -277,16 +277,16 @@ scripts/
 │       └── mi_hybrid_compression.py
 └── bash/
     ├── cpu/              # CPU bash scripts
-    ├── gpu/              # H100 GPU bash scripts
-    │   ├── h100_run_all.sh
-    │   ├── h100_activation_svd.sh
-    │   ├── h100_tucker.sh
-    │   ├── h100_cp.sh
-    │   ├── h100_tensor_train.sh
-    │   ├── h100_weight_pruning.sh
-    │   ├── h100_entropy_svd.sh
-    │   ├── h100_hybrid_mi.sh
-    │   ├── h100_full_pipeline.sh
+    ├── gpu/              # H200 GPU bash scripts
+    │   ├── h200_run_all.sh
+    │   ├── h200_activation_svd.sh
+    │   ├── h200_tucker.sh
+    │   ├── h200_cp.sh
+    │   ├── h200_tensor_train.sh
+    │   ├── h200_weight_pruning.sh
+    │   ├── h200_entropy_svd.sh
+    │   ├── h200_hybrid_mi.sh
+    │   ├── h200_full_pipeline.sh
     │   ├── benchmark_reproducibility.sh
     │   ├── asvd_svdllm_pipeline.sh
     │   ├── memory_profiling.sh
