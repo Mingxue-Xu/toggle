@@ -1,0 +1,65 @@
+# Strategy 5: Entropy-Based Selective SVD Compression for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_entropy_svd
+  compressed_subdir: compressed
+
+analysis:
+  type: activation_metrics
+  metrics:
+    names: [histogram_entropy, frobenius_norm, variance]
+  selection:
+    include_names: ["mlp", "self_attn"]
+  aggregation:
+    reductions: ["mean", "median"]
+  compute:
+    move_to_cpu: true
+  output:
+    report_dir: logs/h100_entropy_svd/analysis
+    stem: entropy_analysis
+    timestamp: true
+    save_json: true
+
+entropy_compression:
+  low_entropy_rank: 32
+  mid_entropy_rank: 64
+  high_entropy_rank: 128
+
+compression:
+  svd:
+    backend: cola
+    cola:
+      algorithm: lanczos
+
+factorization:
+  objects:
+    - "model.layers[*].self_attn.q_proj"
+    - "model.layers[*].self_attn.k_proj"
+    - "model.layers[*].self_attn.v_proj"
+    - "model.layers[*].self_attn.o_proj"
+    - "model.layers[*].mlp.gate_proj"
+    - "model.layers[*].mlp.up_proj"
+    - "model.layers[*].mlp.down_proj"
+  func_name: "svd"
+  rank: 64
+  overrides:
+    - pattern: "model.layers[0:10].*"
+      rank: 32
+    - pattern: "model.layers[10:20].*"
+      rank: 64
+    - pattern: "model.layers[20:].*"
+      rank: 128
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

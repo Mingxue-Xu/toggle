@@ -1,0 +1,14 @@
+# Shared defaults for all pipelines
+pipeline:
+  name: toggle-compression
+  workspace: ./workspace
+
+model:
+  device: auto
+  dtype: bfloat16
+
+compression:
+  method: svd
+
+logging:
+  level: INFO

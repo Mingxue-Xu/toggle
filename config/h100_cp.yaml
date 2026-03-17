@@ -1,0 +1,44 @@
+# Strategy 4: CP Decomposition with Rank Estimation for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_cp
+  compressed_subdir: compressed
+
+analysis:
+  type: activation_metrics
+  metrics:
+    names: [cp_rank_est, frobenius_norm]
+  selection:
+    include_names: ["self_attn"]
+  aggregation:
+    reductions: ["mean", "median"]
+  compute:
+    move_to_cpu: true
+  output:
+    report_dir: logs/h100_cp/analysis
+    stem: cp_analysis
+    timestamp: true
+    save_json: true
+
+factorization:
+  objects:
+    - "model.layers[*].self_attn.q_proj"
+    - "model.layers[*].self_attn.v_proj"
+  func_name: "cp"
+  cp_rank: 64
+  device: cuda
+  backend: pytorch
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

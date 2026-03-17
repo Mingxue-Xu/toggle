@@ -1,0 +1,61 @@
+# Strategy 1: Activation-Guided SVD Compression for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_activation_svd
+  compressed_subdir: compressed
+
+analysis:
+  type: activation_metrics
+  metrics:
+    names: [spectral_norm, singular_values, frobenius_norm, variance]
+  selection:
+    include_names: ["mlp", "self_attn"]
+    module_types: ["GemmaMLP", "GemmaAttention"]
+  aggregation:
+    reductions: ["mean", "median"]
+  compute:
+    move_to_cpu: true
+    seed: 42
+  output:
+    report_dir: logs/h100_activation_svd/analysis
+    stem: activation_report
+    timestamp: true
+    save_json: true
+
+svd_compression:
+  rank_strategy: stable_rank
+  min_rank: 16
+  max_rank: 128
+  target_param_ratio: 0.5
+
+compression:
+  svd:
+    backend: cola
+    cola:
+      algorithm: lanczos
+
+factorization:
+  objects:
+    - "model.layers[*].self_attn.q_proj"
+    - "model.layers[*].self_attn.k_proj"
+    - "model.layers[*].self_attn.v_proj"
+    - "model.layers[*].self_attn.o_proj"
+    - "model.layers[*].mlp.gate_proj"
+    - "model.layers[*].mlp.up_proj"
+    - "model.layers[*].mlp.down_proj"
+  func_name: "svd"
+  rank: 64
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

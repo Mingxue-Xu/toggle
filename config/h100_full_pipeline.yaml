@@ -1,0 +1,80 @@
+# Strategy 8: Full Pipeline - Analysis + Pruning + SVD for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_full_pipeline
+  compressed_subdir: compressed
+
+# Activation analysis configuration
+analysis:
+  activation:
+    type: activation_metrics
+    metrics:
+      names: [spectral_norm, singular_values, frobenius_norm, histogram_entropy]
+    selection:
+      include_names: ["mlp", "self_attn"]
+    aggregation:
+      reductions: ["mean", "median"]
+    compute:
+      move_to_cpu: true
+    output:
+      report_dir: logs/h100_full_pipeline/analysis
+      stem: activation_report
+      timestamp: true
+      save_json: true
+
+  weight:
+    type: weight_metrics
+    metrics:
+      names: [l2_norm, l1_norm, sparsity, std]
+    selection:
+      parameter_kinds: ["weight"]
+    compute:
+      move_to_cpu: true
+    output:
+      report_dir: logs/h100_full_pipeline/analysis
+      stem: weight_report
+      timestamp: true
+      save_json: true
+
+# Block pruning configuration
+pruning:
+  selection_metric_type: "l2_norm.median"
+  group_prefix: "layers"
+  aggregator: "mean"
+  weights: "uniform"
+  ratio_deleted_block: 0.15
+  min_keep: 4
+  container_path: "model.layers"
+
+# SVD compression configuration
+compression:
+  svd:
+    backend: cola
+    cola:
+      algorithm: lanczos
+
+factorization:
+  objects:
+    - "model.layers[*].self_attn.q_proj"
+    - "model.layers[*].self_attn.k_proj"
+    - "model.layers[*].self_attn.v_proj"
+    - "model.layers[*].self_attn.o_proj"
+    - "model.layers[*].mlp.gate_proj"
+    - "model.layers[*].mlp.up_proj"
+    - "model.layers[*].mlp.down_proj"
+  func_name: "svd"
+  rank: 48
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

@@ -1,0 +1,43 @@
+# Strategy 2: Weight-Metrics-Guided Block Pruning for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_weight_pruning
+  compressed_subdir: compressed
+
+analysis:
+  type: weight_metrics
+  metrics:
+    names: [l2_norm, l1_norm, sparsity, std, max_abs]
+  selection:
+    include_names: ["layers"]
+    parameter_kinds: ["weight"]
+  compute:
+    move_to_cpu: true
+  output:
+    report_dir: logs/h100_weight_pruning/analysis
+    stem: weight_report
+    timestamp: true
+    save_json: true
+
+pruning:
+  selection_metric_type: "l2_norm.median"
+  group_prefix: "layers"
+  aggregator: "mean"
+  weights: "uniform"
+  ratio_deleted_block: 0.2
+  min_keep: 4
+  container_path: "model.layers"
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

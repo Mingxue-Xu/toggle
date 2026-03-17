@@ -1,0 +1,57 @@
+# Strategy 7: Mutual Information-Guided Hybrid Compression for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_hybrid_mi
+  compressed_subdir: compressed
+
+analysis:
+  type: activation_metrics
+  metrics:
+    names: [mutual_information_m0_m1, spectral_norm, frobenius_norm]
+  selection:
+    include_names: ["mlp", "self_attn"]
+  aggregation:
+    reductions: ["mean", "median"]
+  compute:
+    move_to_cpu: true
+  output:
+    report_dir: logs/h100_hybrid_mi/analysis
+    stem: mi_analysis
+    timestamp: true
+    save_json: true
+
+compression:
+  svd:
+    backend: cola
+    cola:
+      algorithm: lanczos
+
+factorization:
+  # SVD for low-MI layers (attention - more separable)
+  svd_objects:
+    - "model.layers[*].self_attn.q_proj"
+    - "model.layers[*].self_attn.k_proj"
+    - "model.layers[*].self_attn.v_proj"
+    - "model.layers[*].self_attn.o_proj"
+  svd_rank: 64
+
+  # Tucker for high-MI layers (MLP - mode interaction)
+  tucker_objects:
+    - "model.layers[*].mlp.gate_proj"
+    - "model.layers[*].mlp.up_proj"
+    - "model.layers[*].mlp.down_proj"
+  tucker_ranks: [48, 48]
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

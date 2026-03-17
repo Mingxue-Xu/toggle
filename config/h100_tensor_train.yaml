@@ -1,0 +1,45 @@
+# Strategy 6: Sparsity-Aware Tensor-Train Decomposition for H100 80GB
+model:
+  name: google/gemma-3-27b-it
+  source: hf
+  device: cuda
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  workspace: logs/h100_tensor_train
+  compressed_subdir: compressed
+
+analysis:
+  type: weight_metrics
+  metrics:
+    names: [sparsity, l2_norm, std]
+  selection:
+    include_names: ["mlp"]
+    parameter_kinds: ["weight"]
+  compute:
+    move_to_cpu: true
+  output:
+    report_dir: logs/h100_tensor_train/analysis
+    stem: sparsity_analysis
+    timestamp: true
+    save_json: true
+
+sparsity_threshold: 0.1
+
+factorization:
+  objects:
+    - "model.layers[*].mlp.up_proj"
+    - "model.layers[*].mlp.down_proj"
+  func_name: "tensor_train"
+  tensor_ranks: [1, 32, 32, 1]
+  device: cuda
+  backend: pytorch
+
+evaluation:
+  type: lm_eval
+  tasks: [arc_easy]
+  batch_size: 1
+  device: cuda

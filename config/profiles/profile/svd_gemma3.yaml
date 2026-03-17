@@ -1,0 +1,80 @@
+model:
+  # name: google/gemma-3-27b-it
+  name: google/gemma-3-270m-it
+  source: hf
+  device: auto
+  trust_remote_code: true
+
+auth:
+  hf_token_env: HF_TOKEN
+
+runtime:
+  use_cola_default: true  # CLI --cola overrides; default prefers CoLA backend
+  log_root: ../logs
+  workspace_names:
+    cola: examples/gemma3_svd_cola
+    non_cola: examples/gemma3_svd
+  compressed_subdir: compressed
+
+compression:
+  svd:
+    backend_when_cola: cola
+    backend_when_no_cola: torch
+    cola:
+      algorithm: lanczos
+    torch: {}
+
+analysis:
+  type: activation_metrics
+  metrics:
+    names: all
+    import:
+      file: third_party/information_flow/experiments/utils/metrics/metric_functions.py
+      name_prefix: "metric_"
+  selection:
+    include_names: ["mlp", "self_attn"]
+    module_types: ["GemmaMLP", "GemmaAttention"]
+  aggregation:
+    reductions: ["mean", "median"]
+  compute:
+    move_to_cpu: true
+    seed: 42
+  output:
+    report_dir: ../logs/analysis/activation_metrics
+    stem: gemma3_27b_svd_report
+    timestamp: true
+    save_json: true
+    save_csv: false
+
+factorization:
+  # Target modules (Gemma-style names)
+  objects:
+    # - "model.language_model.embed_tokens"
+    - "model.layers[*].self_attn.q_proj"
+    - "model.layers[*].self_attn.k_proj"
+    - "model.layers[*].self_attn.v_proj"
+    - "model.layers[*].self_attn.o_proj"
+    # MLP groups (single shared rank)
+    - "model.layers[*].mlp.gate_proj"
+    - "model.layers[*].mlp.up_proj"
+    - "model.layers[*].mlp.down_proj"
+  # Default method and single SVD rank applied to all targets
+  func_name: "svd"
+  rank: 16
+
+evaluation:
+  type: lm_eval
+  tasks: [wikitext, arc_easy]
+  limit: 5
+  batch_size: 1
+  device: cuda
+
+memory_inference:
+  enabled: true
+  isolate_subprocess: true
+  device: auto
+  repeats: 1
+  input:
+    kind: ids
+    batch_size: 1
+    seq_len: 16
