@@ -145,6 +145,7 @@ toggle/
 ## Documentation
 
 - [Remote Runs Guide](docs/remote_runs.md) — Instructions for running on GPU servers
+- [Successful Runs](docs/successful_runs.md) — H200 GPU benchmark results (7 compression strategies, third-party tests)
 
 ## License
 
