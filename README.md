@@ -7,16 +7,16 @@ A configuration-driven LLM compression framework using low-rank factorization an
 | Category | Options |
 |----------|---------|
 | **Compression Algorithms** | SVD, Tucker, CP (CANDECOMP/PARAFAC), Tensor Train, Weight Pruning |
-| **Rank Selection Criteria** | Activation-informed ([ASVD](https://github.com/hahnyuan/ASVD4LLM), [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM)), metrics that are included [information_flow](https://github.com/OFSkean/information_flow), Entropy, Fisher Information, Stable Rank |
+| **Rank Selection Criteria** | Activation-informed algorithms like [ASVD](https://github.com/hahnyuan/ASVD4LLM) and [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM), the metrics included in [information_flow](https://github.com/OFSkean/information_flow), entropies, Fisher Information, stable rank |
 | **Algebra Backends** | [CoLA](https://github.com/wilson-labs/cola) (Lanczos, LOBPCG), PyTorch, [TensorLy](https://github.com/tensorly/tensorly) |
 | **Target Layers** | MLP projections, Attention (Q/K/V/O), Embeddings |
-| **Evaluation** | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, perplexity, self-defined metrics |
-| **Profiling** | Memory (RSS, VMS, GPU allocated/reserved, peak), time (per-phase, efficiency score), subprocess isolation |
+| **Evaluation** | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, self-defined metrics |
+| **Profiling** | Memory (RSS, VMS, GPU allocated/reserved, peak), time (per-phase), subprocess isolation |
 
 ## Quick Start
 
 ### 1. Install
-Under a conda environment or virtualenv, install 
+In a conda environment or virtualenv, install with `pip`
 
 ```bash
 pip install -r requirements.txt
@@ -29,7 +29,7 @@ Create a YAML config file specifying your compression pipeline:
 ```yaml
 # config/my_compression.yaml
 model:
-  name: google/gemma-3-27b-it
+  name: Qwen/Qwen3-14B
   source: hf
   device: cuda
 
