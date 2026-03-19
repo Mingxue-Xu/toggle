@@ -1,6 +1,8 @@
 # Toggle
 
-A configuration-driven LLM compression framework using low-rank factorization and layer removal.
+LLM compression framework focusing on low-rank factorization (matrices and tensors), taking charge your whole experiment pipelines (compression, evaluation, profiling and logging).
+
+P.S. The current codebase seems a bit slop, both human and agent contributors are investigating it. 
 
 ## Features
 
@@ -9,9 +11,9 @@ A configuration-driven LLM compression framework using low-rank factorization an
 | **Compression Algorithms** | SVD, Tucker, CP (CANDECOMP/PARAFAC), Tensor Train, Weight Pruning |
 | **Rank Selection Criteria** | Activation-informed algorithms like [ASVD](https://github.com/hahnyuan/ASVD4LLM) and [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM), the metrics included in [information_flow](https://github.com/OFSkean/information_flow), entropies, Fisher Information, stable rank |
 | **Algebra Backends** | [CoLA](https://github.com/wilson-labs/cola) (Lanczos, LOBPCG), PyTorch, [TensorLy](https://github.com/tensorly/tensorly) |
-| **Target Layers** | MLP projections, Attention (Q/K/V/O), Embeddings |
-| **Evaluation** | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, self-defined metrics |
-| **Profiling** | Memory (RSS, VMS, GPU allocated/reserved, peak), time (per-phase), subprocess isolation |
+| **Target Layers** | MLP, attention layers (Q/K/V/O), embedding layers |
+| **Evaluation** | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, self-defined language task evaluation metrics |
+| **Profiling** | Memory (RSS, VMS, GPU allocated/reserved, peak), latency (per-phase), subprocess isolation |
 
 ## Quick Start
 
@@ -24,7 +26,7 @@ pip install -r requirements.txt
 
 ### 2. Configure
 
-Create a YAML config file specifying your compression pipeline:
+Create a YAML config file specifying your compression pipeline, this is an example:
 
 ```yaml
 # config/my_compression.yaml
@@ -48,14 +50,15 @@ factorization:
   rank: 64
 
 evaluation:
-  type: lm_eval
+  type: lm_eval         #   lm-eval-harness
   tasks: [arc_easy]
 ```
+More example configurations are in `/config`, 
 
 ### 3. Run
 
 ```bash
-python scripts/examples/gpu/h100_activation_svd.py --config config/my_compression.yaml
+python scripts/examples/gpu/h100_activation_svd.py --config config/h100_activation_svd.yaml
 ```
 
 ## Configuration Options
@@ -127,27 +130,29 @@ H100-optimized scripts with enhanced memory management for large models:
 
 ```
 toggle/
-├── config/                 # YAML configuration files
+├── config/
+│   ├── base/              # Base YAML configuration files
+│   └── profiles/          # Profile-specific configs (eval/, profile/)
+├── docs/                  # Documentation (remote_runs.md, successful_runs.md)
+├── logs/                  # Runtime logs
 ├── scripts/
 │   ├── bash/              # Shell scripts (cpu/, gpu/, third-party/)
-│   └── examples/          # Python examples (cpu/, gpu/, third-party/)
-├── src/
-│   ├── config/            # Config loader
-│   ├── framework/         # Core framework (layers, state, IO)
-│   ├── orchestration/     # Pipeline orchestration
-│   └── plugins/
-│       ├── analysis/      # Metrics and layer selection
-│       ├── compression/   # SVD, Tucker, CP, pruning
-│       ├── evaluation/    # lm-eval integration
-│       └── models/        # Model utilities
-└── tests/                 # Unit, integration, and e2e tests
+│   ├── examples/          # Python examples (cpu/, gpu/, third-party/)
+│   ├── logs/              # Script execution logs
+│   └── utils/             # Utility scripts
+└── src/
+    ├── config/            # Config loader
+    ├── framework/         # Core framework (layers, state, IO)
+    ├── orchestration/     # Pipeline orchestration
+    └── plugins/
+        ├── analysis/      # Metrics and layer selection
+        ├── compression/   # SVD, Tucker, CP, pruning
+        ├── evaluation/    # lm-eval integration
+        └── models/        # Model utilities
 ```
 
 ## Documentation
 
+- [Architecture](docs/architecture.md) — Plugin-based design, EventBus, and workflow system
 - [Remote Runs Guide](docs/remote_runs.md) — Instructions for running on GPU servers
 - [Successful Runs](docs/successful_runs.md) — H200 GPU benchmark results (7 compression strategies, third-party tests)
-
-## License
-
-MIT
