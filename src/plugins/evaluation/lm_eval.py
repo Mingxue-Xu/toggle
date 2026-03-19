@@ -70,9 +70,10 @@ class LMHarness(ModelEvaluationPlugin):
                  model_type: str = "auto",
                  compat_mode: Optional[str] = None,
                  compat_plugin_name: Optional[str] = None,
-                 backend: str = "hf",
+                 backend: str = "auto",
                  hf_model_name: Optional[str] = None,
                  hf_kwargs: Optional[Dict[str, Any]] = None,
+                 allow_checkpoint_reload: bool = False,
                  **kwargs):
         """
         Initialize LM Evaluation plugin
@@ -95,43 +96,18 @@ class LMHarness(ModelEvaluationPlugin):
         # Back-compat flags to emulate Baseline/Compressed plugins
         self._compat_mode = compat_mode  # 'baseline' | 'compressed' | None
         self._compat_plugin_name = compat_plugin_name or "LMEval"
-        # LM Harness backend selection (default to HF backend)
-        self.backend = (backend or "hf").strip().lower()
+        # LM Harness backend selection defaults to safe in-memory behavior
+        self.backend = (backend or "auto").strip().lower()
         self.hf_model_name = hf_model_name
         self.hf_kwargs = dict(hf_kwargs) if isinstance(hf_kwargs, dict) else {}
+        self.allow_checkpoint_reload = allow_checkpoint_reload
         
         # Initialize CSV logger
         self.csv_logger: Optional[CSVLogger] = None
         
     def do_execute(self, **kwargs):
-        """
-        Execute evaluation via LM harness for the configured tasks.
-
-        Expected kwargs:
-        - model: PreTrainedModel (optional; resolved from context if missing)
-        - tokenizer: PreTrainedTokenizer (optional; resolved from context if missing)
-        - tasks: Optional[List[str]] to override instance tasks
-        - other parameters forwarded to evaluate_task/_harness
-        """
-        model = kwargs.get("model")
-        tokenizer = kwargs.get("tokenizer")
-        tasks = kwargs.get("tasks") or self.tasks
-
-        # Attempt to resolve model/tokenizer from context if not provided
-        if model is None and getattr(self, '_model_manager', None) is not None and getattr(self, '_context', None) is not None:
-            state = getattr(self._context, 'state', None)
-            if state is not None and getattr(state, 'model', None) is not None:
-                model = state.model
-        if tokenizer is None and getattr(self, '_model_manager', None) is not None and getattr(self, '_context', None) is not None:
-            state = getattr(self._context, 'state', None)
-            if state is not None and getattr(state, 'tokenizer', None) is not None:
-                tokenizer = state.tokenizer
-
-        if model is None or tokenizer is None:
-            raise ValueError("LMHarness.do_execute requires 'model' and 'tokenizer' (or available via context)")
-
-        extra = {k: v for k, v in kwargs.items() if k not in ("model", "tokenizer", "tasks")}
-        return self._execute_impl(model, tokenizer, tasks, **extra)
+        """Delegate to the shared evaluation contract."""
+        return super().do_execute(**kwargs)
 
     def get_supported_tasks(self) -> List[str]:
         """Get comprehensive list of supported evaluation tasks"""
@@ -193,11 +169,10 @@ class LMHarness(ModelEvaluationPlugin):
         """
         if not LM_EVAL_AVAILABLE:
             raise ImportError("lm_eval is not installed. Please install with: pip install lm_eval")
-        
+
         if not self.validate_task(task):
             self.logger.warning(f"Task '{task}' may not be supported by LM Evaluation Harness")
 
-        # Use explicit hint only; no auto-detection
         model_type = self.model_type if self.model_type != "auto" else "unknown"
 
         # Prepare evaluator call
@@ -220,7 +195,13 @@ class LMHarness(ModelEvaluationPlugin):
                 **call_params,
             }
 
-            if self.backend in ("hf", "hf-causal"):
+            if self.backend in {"hf", "hf-causal"}:
+                if model is not None and not self.allow_checkpoint_reload:
+                    raise ValueError(
+                        "LMHarness backend 'hf' requires allow_checkpoint_reload=True when a model "
+                        "object is already provided; use backend='auto' for in-memory evaluation."
+                    )
+
                 # Resolve model name
                 resolved_name = self.hf_model_name or getattr(model, 'name_or_path', None)
                 if not resolved_name:
@@ -236,6 +217,16 @@ class LMHarness(ModelEvaluationPlugin):
                     "model_args": model_args,
                 })
             else:
+                if self.backend not in {"auto", "adapter", "in_memory"}:
+                    raise ValueError(
+                        f"Unsupported LMHarness backend '{self.backend}'. "
+                        "Use 'auto', 'adapter', 'in_memory', 'hf', or 'hf-causal'."
+                    )
+                if model is None or tokenizer is None:
+                    raise ValueError(
+                        "LMHarness backend 'auto'/'adapter'/'in_memory' requires both model and tokenizer"
+                    )
+
                 # Use in-memory adapter backend
                 adapter = LMLMHarnessModelAdapter(
                     model=model,
@@ -250,6 +241,11 @@ class LMHarness(ModelEvaluationPlugin):
                 })
 
             results = evaluator.simple_evaluate(**eval_call_kwargs)
+            result_model_name = (
+                str(self.hf_model_name or getattr(model, "name_or_path", resolved_name))
+                if self.backend in {"hf", "hf-causal"}
+                else getattr(model, "name_or_path", model.__class__.__name__)
+            )
 
             # Extract comprehensive metrics from results
             task_results = results.get('results', {}).get(task, {})
@@ -305,7 +301,7 @@ class LMHarness(ModelEvaluationPlugin):
                 metrics=metrics,
                 num_samples=num_samples,
                 evaluation_time=execution_time,
-                model_name=getattr(model, 'name_or_path', model.__class__.__name__),
+                model_name=result_model_name,
                 additional_info=additional_info
             )
 

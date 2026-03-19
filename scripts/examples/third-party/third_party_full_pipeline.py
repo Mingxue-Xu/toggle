@@ -331,9 +331,9 @@ def evaluate_model(
     print("\n[Pipeline] Step 6: Evaluating model")
 
     try:
-        from src.plugins.evaluation.lm_eval import LMHarness
+        from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
-        evaluator = LMHarness(tasks=tasks)
+        evaluator = LMHarness(tasks=tasks, backend="auto")
         results = {}
 
         for task in tasks:

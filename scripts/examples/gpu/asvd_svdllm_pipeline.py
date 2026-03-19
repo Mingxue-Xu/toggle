@@ -62,7 +62,7 @@ from src.plugins.compression.svd_ppl_sensitivity import PPLSensitivityPlugin
 from src.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
 from src.plugins.compression.svd_closed_form_update import ClosedFormUpdatePlugin
 from src.plugins.compression.consolidator import ModelConsolidator
-from src.plugins.evaluation.lm_eval import LMHarness
+from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
 
 # H200 GPU-optimized model recommendations
@@ -373,7 +373,7 @@ def evaluate_compressed_model(
     print("LMHarness Evaluation (H200 GPU)")
     print("="*60)
 
-    evaluator = LMHarness(tasks=tasks)
+    evaluator = LMHarness(tasks=tasks, backend="auto")
     results = {}
 
     for task in tasks:

@@ -293,20 +293,21 @@ class UnifiedStrategyFactory:
         self.logger = logging.getLogger("unified_strategy_factory")
         
         # Strategy registries - now pointing to actual compression classes
+        package_root = self._package_root()
         self._compression_strategies = {
-            "tensor_train": "src.plugins.compression.tensor_train.TensorTrain",
-            "tt": "src.plugins.compression.tensor_train.TensorTrain",  # Alias
-            "svd": "src.plugins.compression.svd.SVD",
-            "tucker": "src.plugins.compression.tucker.Tucker",
-            "cp": "src.plugins.compression.cp.CP",
-            "candecomp": "src.plugins.compression.cp.CP",  # Alias
+            "tensor_train": f"{package_root}.plugins.compression.tensor_train.TensorTrain",
+            "tt": f"{package_root}.plugins.compression.tensor_train.TensorTrain",  # Alias
+            "svd": f"{package_root}.plugins.compression.svd.SVD",
+            "tucker": f"{package_root}.plugins.compression.tucker.Tucker",
+            "cp": f"{package_root}.plugins.compression.cp.CP",
+            "candecomp": f"{package_root}.plugins.compression.cp.CP",  # Alias
             # ASVD and SVD-LLM plugins
-            "calibration_collector": "src.plugins.compression.calibration_collector.CalibrationCollectorPlugin",
-            "activation_scaling": "src.plugins.compression.svd_activation_scaling.ActivationScalingPlugin",
-            "data_whitening": "src.plugins.compression.svd_data_whitening.DataWhiteningPlugin",
-            "closed_form_update": "src.plugins.compression.svd_closed_form_update.ClosedFormUpdatePlugin",
-            "ppl_sensitivity": "src.plugins.compression.svd_ppl_sensitivity.PPLSensitivityPlugin",
-            "binary_search_rank": "src.plugins.compression.svd_binary_search_rank.BinarySearchRankPlugin",
+            "calibration_collector": f"{package_root}.plugins.compression.calibration_collector.CalibrationCollectorPlugin",
+            "activation_scaling": f"{package_root}.plugins.compression.svd_activation_scaling.ActivationScalingPlugin",
+            "data_whitening": f"{package_root}.plugins.compression.svd_data_whitening.DataWhiteningPlugin",
+            "closed_form_update": f"{package_root}.plugins.compression.svd_closed_form_update.ClosedFormUpdatePlugin",
+            "ppl_sensitivity": f"{package_root}.plugins.compression.svd_ppl_sensitivity.PPLSensitivityPlugin",
+            "binary_search_rank": f"{package_root}.plugins.compression.svd_binary_search_rank.BinarySearchRankPlugin",
         }
         
         self._evaluation_strategies = {
@@ -324,6 +325,15 @@ class UnifiedStrategyFactory:
             "activations": ActivationMetricsAnalysisStrategy,
             "activation_metrics": ActivationMetricsAnalysisStrategy
         }
+
+    @staticmethod
+    def _package_root() -> str:
+        package = __package__ or ""
+        if package.endswith(".framework"):
+            return package.rsplit(".", 1)[0]
+        if package:
+            return package
+        return "toggle.src"
     
     def get_compression_strategy(self, method: str, **params):
         """

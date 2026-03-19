@@ -45,7 +45,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.framework.context import PipelineContext
 from src.framework.compressed_io import save_compressed_to_safetensors
 from src.plugins.compression.consolidator import ModelConsolidator
-from src.plugins.evaluation.lm_eval import LMHarness
+from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
 
 @dataclass
@@ -126,7 +126,7 @@ def evaluate_model_tasks(
     limit: Optional[int] = None,
 ) -> Tuple[float, Dict[str, Dict[str, float]]]:
     """Evaluate model on LM tasks."""
-    evaluator = LMHarness(tasks=tasks)
+    evaluator = LMHarness(tasks=tasks, backend="auto")
     task_results = {}
     total_time = 0.0
 

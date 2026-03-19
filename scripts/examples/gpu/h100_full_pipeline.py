@@ -39,7 +39,7 @@ from src.plugins.analysis.activation_metrics import ActivationMetricsPlugin
 from src.plugins.analysis.weight_metrics import WeightMetricsPlugin
 from src.plugins.compression.pruning import PruningPlugin
 from src.plugins.compression.consolidator import ModelConsolidator
-from src.plugins.evaluation.lm_eval import LMHarness
+from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
 
 def params_count(model) -> int:
@@ -204,7 +204,7 @@ def main():
     if not args.skip_eval:
         print("\n[h100_full_pipeline] Step 5: LMHarness Evaluation")
         eval_tasks = args.eval_tasks.split(",")
-        evaluator = LMHarness(tasks=eval_tasks)
+        evaluator = LMHarness(tasks=eval_tasks, backend="auto")
 
         for task in eval_tasks:
             print(f"  Evaluating: {task}")

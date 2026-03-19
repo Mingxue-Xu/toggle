@@ -39,7 +39,7 @@ from src.framework.compressed_io import save_compressed_to_safetensors
 from src.framework.context import PipelineContext
 from src.framework.layers import FactorLinear
 from src.plugins.compression.consolidator import ModelConsolidator
-from src.plugins.evaluation.lm_eval import LMHarness
+from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
 DEFAULT_CONFIG = "config/svd_gemma3.yaml"
 DEFAULT_INPUT_CSV = "config/gemma3_ranks.csv"
@@ -335,9 +335,10 @@ def _evaluate_model(
         model_type=eval_cfg.get("model_type", "auto"),
         compat_mode=None,
         compat_plugin_name="LMEval",
-        backend=eval_cfg.get("backend", "hf"),
+        backend=eval_cfg.get("backend", "auto"),
         hf_model_name=eval_cfg.get("hf_model_name"),
         hf_kwargs=eval_cfg.get("hf_kwargs"),
+        allow_checkpoint_reload=bool(eval_cfg.get("allow_checkpoint_reload", False)),
     )
     plugin.initialize(ctx)
     t0 = time.perf_counter()

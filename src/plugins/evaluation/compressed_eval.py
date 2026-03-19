@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Union
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
 from .base import CompressedModelEvaluationPlugin, ModelEvaluationResult
-from .lm_eval import LMHarness
+from .lm_eval import LMHarness, LM, Instance, register_model_safe
 from .csv_logger import CSVLogger
 
 @register_model_safe("compressed_toggle")

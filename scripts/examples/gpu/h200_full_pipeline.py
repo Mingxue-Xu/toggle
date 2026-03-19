@@ -53,7 +53,7 @@ from src.plugins.compression.calibration_collector import CalibrationCollectorPl
 from src.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
 from src.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
 from src.plugins.compression.consolidator import ModelConsolidator
-from src.plugins.evaluation.lm_eval import LMHarness
+from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
 
 # H200 GPU Model Tiers
@@ -174,7 +174,7 @@ def run_full_pipeline(
     print(f"  GPU Memory: {get_gpu_memory_gb():.2f} GB")
 
     # Evaluate baseline
-    evaluator = LMHarness(tasks=tasks)
+    evaluator = LMHarness(tasks=tasks, backend="auto")
     baseline_metrics = {}
     t0 = time.perf_counter()
     for task in tasks:

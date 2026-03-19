@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
-from src.framework.plugins import Plugin, PluginMetadata
+from ...framework.plugins import Plugin, PluginMetadata
 
 
 @dataclass
@@ -58,11 +58,14 @@ class ModelEvaluationPlugin(Plugin):
             category="evaluation"
         )
     
-    def _execute_impl(self, 
-                     model: PreTrainedModel, 
-                     tokenizer: PreTrainedTokenizer,
-                     tasks: Optional[List[str]] = None,
-                     **params) -> Dict[str, ModelEvaluationResult]:
+    def do_execute(
+        self,
+        context=None,
+        model: Optional[PreTrainedModel] = None,
+        tokenizer: Optional[PreTrainedTokenizer] = None,
+        tasks: Optional[List[str]] = None,
+        **params,
+    ) -> Dict[str, ModelEvaluationResult]:
         """
         Execute model evaluation
         
@@ -76,8 +79,25 @@ class ModelEvaluationPlugin(Plugin):
             Dictionary mapping task names to evaluation results
         """
         import time
-        
+
+        if model is None and self.context:
+            state = getattr(self.context, "state", None)
+            if state is not None:
+                model = getattr(state, "model", None) or state.get("model")
+        if tokenizer is None and self.context:
+            state = getattr(self.context, "state", None)
+            if state is not None:
+                tokenizer = getattr(state, "tokenizer", None) or state.get("tokenizer")
+
+        if model is None or tokenizer is None:
+            raise ValueError(
+                f"{self.__class__.__name__}.do_execute requires 'model' and 'tokenizer' "
+                "(or values available in context.state)"
+            )
+
         eval_tasks = tasks or self.tasks
+        if isinstance(eval_tasks, str):
+            eval_tasks = [eval_tasks]
         results = {}
         
         # Emit evaluation started event
@@ -115,7 +135,8 @@ class ModelEvaluationPlugin(Plugin):
                 # Perform evaluation for this task
                 task_result = self.evaluate_task(model, tokenizer, task, **params)
                 task_result.evaluation_time = time.time() - task_start_time
-                task_result.model_name = getattr(model, 'name_or_path', model.__class__.__name__)
+                if not task_result.model_name:
+                    task_result.model_name = getattr(model, 'name_or_path', model.__class__.__name__)
                 
                 results[task] = task_result
                 
@@ -270,15 +291,24 @@ class CompressedModelEvaluationPlugin(ModelEvaluationPlugin):
             category="evaluation"
         )
     
-    def _execute_impl(self, 
-                     model: PreTrainedModel, 
-                     tokenizer: PreTrainedTokenizer,
-                     tasks: Optional[List[str]] = None,
-                     **params) -> Dict[str, ModelEvaluationResult]:
+    def do_execute(
+        self,
+        context=None,
+        model: Optional[PreTrainedModel] = None,
+        tokenizer: Optional[PreTrainedTokenizer] = None,
+        tasks: Optional[List[str]] = None,
+        **params,
+    ) -> Dict[str, ModelEvaluationResult]:
         """
         Execute compressed model evaluation with compression metadata
         """
-        results = super()._execute_impl(model, tokenizer, tasks, **params)
+        results = super().do_execute(
+            context=context,
+            model=model,
+            tokenizer=tokenizer,
+            tasks=tasks,
+            **params,
+        )
         
         # Add compression information to results
         for task_result in results.values():

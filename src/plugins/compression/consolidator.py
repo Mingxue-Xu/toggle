@@ -250,7 +250,7 @@ class ModelConsolidator(Plugin):
         """Initialize compression strategy using UnifiedStrategyFactory"""
         # Use shared infrastructure strategy factory
         if not self.strategy_factory:
-            from src.framework.strategy_factory import UnifiedStrategyFactory
+            from ...framework.strategy_factory import UnifiedStrategyFactory
             self._strategy_factory = UnifiedStrategyFactory()
         
         # Prepare parameters for the factory based on compression method
@@ -745,7 +745,7 @@ class ModelConsolidator(Plugin):
         Raises:
             ValueError: If layer type is not supported
         """
-        from src.framework.layers import FactorEmbedding, FactorLinear, FactorLayer, Factor
+        from ...framework.layers import FactorEmbedding, FactorLinear, FactorLayer, Factor
 
         # Specialized path for SVD compressed data (detect by attributes)
         if hasattr(compressed_data, 'u') and hasattr(compressed_data, 's'):
@@ -800,7 +800,7 @@ class ModelConsolidator(Plugin):
         Raises:
             ValueError: If compression method is not supported
         """
-        from src.framework.layers import FactorLayer, Factor
+        from ...framework.layers import FactorLayer, Factor
         
         method_name = getattr(compressed_data, "method", None) or self.compression_method
         # Extract factors from compressed data based on compression method

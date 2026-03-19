@@ -152,18 +152,19 @@ class CalibrationCollectorPlugin(Plugin):
                 if samples_collected >= self.n_samples:
                     break
 
-                # Handle different batch formats
-                if isinstance(batch, dict):
-                    batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v
-                             for k, v in batch.items()}
-                    model(**batch)
-                elif isinstance(batch, (list, tuple)):
-                    batch = [b.to(device) if isinstance(b, torch.Tensor) else b for b in batch]
-                    model(batch[0])
-                else:
-                    model(batch.to(device))
+                remaining = max(0, self.n_samples - samples_collected)
+                model_inputs, batch_examples = self._prepare_batch_inputs(
+                    batch=batch,
+                    device=device,
+                    max_examples=remaining,
+                )
 
-                samples_collected += 1
+                if isinstance(model_inputs, dict):
+                    model(**model_inputs)
+                else:
+                    model(model_inputs)
+
+                samples_collected += batch_examples
                 self.update_progress(100.0 * samples_collected / self.n_samples)
 
         # Remove hooks
@@ -217,3 +218,83 @@ class CalibrationCollectorPlugin(Plugin):
             "layers_collected": layers_collected,
             "samples": samples_collected,
         }
+
+    def _prepare_batch_inputs(
+        self,
+        batch: Any,
+        device: torch.device,
+        max_examples: Optional[int] = None,
+    ) -> tuple[Any, int]:
+        """Move a batch to device, preserve structure, and optionally trim it."""
+        if isinstance(batch, dict):
+            prepared = {
+                key: self._maybe_trim_tensor(value, max_examples).to(device)
+                if isinstance(value, torch.Tensor)
+                else value
+                for key, value in batch.items()
+            }
+            return prepared, self._infer_batch_size(prepared)
+
+        if isinstance(batch, (list, tuple)):
+            tensors = [
+                self._maybe_trim_tensor(value, max_examples).to(device)
+                if isinstance(value, torch.Tensor)
+                else value
+                for value in batch
+            ]
+            if not tensors:
+                raise ValueError("Calibration batch cannot be empty")
+
+            if len(tensors) == 1:
+                tensor = tensors[0]
+                if not isinstance(tensor, torch.Tensor):
+                    raise ValueError("Single-item calibration batch must contain a tensor")
+                return tensor, self._infer_batch_size(tensor)
+
+            if len(tensors) <= 3 and all(
+                value is None or isinstance(value, torch.Tensor) for value in tensors
+            ):
+                keys = ("input_ids", "attention_mask", "labels")
+                prepared = {
+                    key: value
+                    for key, value in zip(keys, tensors)
+                    if isinstance(value, torch.Tensor)
+                }
+                return prepared, self._infer_batch_size(prepared)
+
+            raise ValueError(
+                "Ambiguous tuple/list calibration batch. Expected "
+                "(input_ids,), (input_ids, attention_mask), or "
+                "(input_ids, attention_mask, labels)."
+            )
+
+        if isinstance(batch, torch.Tensor):
+            tensor = self._maybe_trim_tensor(batch, max_examples).to(device)
+            return tensor, self._infer_batch_size(tensor)
+
+        raise ValueError(f"Unsupported calibration batch type: {type(batch).__name__}")
+
+    def _infer_batch_size(self, batch: Any) -> int:
+        """Infer example count from the leading tensor dimension."""
+        if isinstance(batch, dict):
+            for value in batch.values():
+                if isinstance(value, torch.Tensor):
+                    return value.shape[0] if value.ndim > 0 else 1
+            return 0
+
+        if isinstance(batch, torch.Tensor):
+            return batch.shape[0] if batch.ndim > 0 else 1
+
+        raise ValueError(f"Cannot infer batch size from type: {type(batch).__name__}")
+
+    def _maybe_trim_tensor(
+        self,
+        value: torch.Tensor,
+        max_examples: Optional[int],
+    ) -> torch.Tensor:
+        """Trim tensor batches so collection stops on true example count."""
+        if max_examples is None or max_examples <= 0 or value.ndim == 0:
+            return value
+        if value.shape[0] <= max_examples:
+            return value
+        return value[:max_examples]

@@ -7,16 +7,12 @@ language models within the plugin-based pipeline system.
 import torch
 from abc import abstractmethod
 from typing import Any, Dict, Optional, Tuple, Union
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils import PreTrainedTokenizer
 
-try:
-    from framework.plugins import Plugin, PluginMetadata
-    from framework.context import PipelineContext
-except ModuleNotFoundError:
-    from src.framework.plugins import Plugin, PluginMetadata
-    from src.framework.context import PipelineContext
+from ...framework.plugins import Plugin, PluginMetadata
+from ...framework.context import PipelineContext
 
 
 class ModelLoader(Plugin):
@@ -54,7 +50,7 @@ class ModelLoader(Plugin):
             category="model"
         )
     
-    def _execute_impl(self, model_name: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def do_execute(self, model_name: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """
         Execute model loading
         
@@ -68,7 +64,14 @@ class ModelLoader(Plugin):
         target_model = model_name or self.model_name
         if not target_model:
             raise ValueError("No model name provided")
-        
+
+        # WorkflowExecutor forwards shared runtime objects; loaders should not
+        # pass them through to Hugging Face loading calls.
+        kwargs = dict(kwargs)
+        kwargs.pop("context", None)
+        kwargs.pop("model", None)
+        kwargs.pop("tokenizer", None)
+
         self.logger.info(f"Loading model: {target_model} on device: {self.device}")
         
         # Load model and tokenizer
@@ -101,6 +104,10 @@ class ModelLoader(Plugin):
             "model_name": target_model,
             "device": self.device
         }
+
+    def _execute_impl(self, model_name: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+        """Backward-compatible shim for callers that still reference the legacy hook."""
+        return self.do_execute(model_name=model_name, **kwargs)
     
     @abstractmethod
     def load_model(self, model_name: str, **kwargs) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
@@ -189,28 +196,35 @@ class HuggingFaceModelLoader(ModelLoader):
             Tuple of (model, tokenizer)
         """
         try:
-            # Map common auth/cache kwargs from config
-            auth_token = kwargs.pop("hf_token", None) or kwargs.get("use_auth_token") or kwargs.get("token")
-            cache_dir = kwargs.get("cache_dir")
+            # Normalize overlapping auth/cache kwargs once to avoid duplicate-key errors.
+            kwargs = dict(kwargs)
+            kwargs.pop("context", None)
+            kwargs.pop("model", None)
+            kwargs.pop("tokenizer", None)
+            model_class = kwargs.pop("model_class", AutoModelForCausalLM)
+            trust_remote_code = kwargs.pop("trust_remote_code", self.trust_remote_code)
+            hf_token = kwargs.pop("hf_token", None)
+            use_auth_token = kwargs.pop("use_auth_token", None)
+            token = kwargs.pop("token", None)
+            auth_token = hf_token or use_auth_token or token
+            cache_dir = kwargs.pop("cache_dir", None)
             common = {}
             if auth_token:
-                # Support both legacy and current parameter names
-                common["use_auth_token"] = auth_token
                 common["token"] = auth_token
             if cache_dir:
                 common["cache_dir"] = cache_dir
             # Load tokenizer
             tokenizer = AutoTokenizer.from_pretrained(
                 model_name,
-                trust_remote_code=self.trust_remote_code,
+                trust_remote_code=trust_remote_code,
                 **common,
                 **kwargs
             )
             
             # Load model
-            model = AutoModel.from_pretrained(
+            model = model_class.from_pretrained(
                 model_name,
-                trust_remote_code=self.trust_remote_code,
+                trust_remote_code=trust_remote_code,
                 torch_dtype=torch.float32,  # Default dtype
                 **common,
                 **kwargs
@@ -245,9 +259,18 @@ class LocalModelLoader(ModelLoader):
             Tuple of (model, tokenizer)
         """
         try:
+            kwargs = dict(kwargs)
+            kwargs.pop("context", None)
+            kwargs.pop("model", None)
+            kwargs.pop("tokenizer", None)
+            model_class = kwargs.pop("model_class", AutoModel)
+            kwargs.pop("hf_token", None)
+            kwargs.pop("use_auth_token", None)
+            kwargs.pop("token", None)
+            kwargs.pop("cache_dir", None)
             # Load from local path
             tokenizer = AutoTokenizer.from_pretrained(model_path, **kwargs)
-            model = AutoModel.from_pretrained(model_path, **kwargs)
+            model = model_class.from_pretrained(model_path, **kwargs)
             
             # Move to device
             model = model.to(self.device)

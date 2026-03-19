@@ -269,7 +269,7 @@ class Tucker(LowRankCompressionPlugin):
         Returns:
             FactorEmbedding or FactorLinear layer based on original shape
         """
-        from src.framework.layers import FactorLayer, FactorEmbedding, FactorLinear, Factor
+        from ...framework.layers import FactorLayer, FactorEmbedding, FactorLinear, Factor
         
         # Create factors from Tucker decomposition
         factors = []

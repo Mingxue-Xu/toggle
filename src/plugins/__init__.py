@@ -10,7 +10,7 @@ and analysis tools.
 # (e.g., LM Harness registry conflicts). Submodules can be imported directly.
 
 
-from src.framework.plugins import Plugin, PluginRegistry, PluginMetadata
+from ..framework.plugins import Plugin, PluginRegistry, PluginMetadata
 
 __all__ = ['Plugin', 'PluginRegistry', 'PluginMetadata']
 

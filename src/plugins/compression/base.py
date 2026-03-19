@@ -142,122 +142,126 @@ class LowRankCompressionPlugin(Plugin):
                 )
             raise
     
-    # Strategy-level interface (for UnifiedStrategyFactory compatibility)
-    def execute(self, context, model=None, target_modules=None, **params):
+    def do_execute(
+        self,
+        context=None,
+        tensor: Optional[torch.Tensor] = None,
+        model=None,
+        target_modules: Optional[List[str]] = None,
+        **params,
+    ):
         """
-        Strategy-level execution for model compression
-        
-        Args:
-            context: Pipeline context
-            model: Model to compress
-            target_modules: List of target modules to compress
-            **params: Strategy-specific parameters
-            
-        Returns:
-            Model compression results
+        Execute through the shared Plugin lifecycle.
+
+        Supports both tensor-level compression (`tensor=...`) and model-level
+        compression (`model=...`) without shadowing `Plugin.execute()`.
         """
-        if not model:
-            raise ValueError("Model is required for compression")
-        
-        self.logger.info(f"Applying {self.__class__.__name__} compression")
-        return self.compress_model(model, target_modules=target_modules, **params)
+        if tensor is not None:
+            return self._execute_impl(tensor, **params)
 
+        if model is not None:
+            self.logger.info(f"Applying {self.__class__.__name__} compression")
+            return self.compress_model(model, target_modules=target_modules, **params)
 
-# Backward-compat name expected by some tests
-class TensorCompressionPlugin(LowRankCompressionPlugin):
-    pass
-    
+        raise ValueError(
+            f"{self.__class__.__name__} requires either 'tensor' or 'model' input"
+        )
+
     def compress_model(self, model, target_modules=None, **params):
         """
-        Compress entire model using this low-rank strategy
-        
-        Args:
-            model: Model to compress
-            target_modules: List of target modules to compress
-            **params: Compression parameters
-            
-        Returns:
-            Model compression results
+        Compress entire model using this low-rank strategy.
+
+        Subclasses can override this for method-specific surgery, but the
+        default implementation keeps workflow-managed plugins on the standard
+        execution path.
         """
-        # Default implementation - can be overridden by subclasses
-        # This provides model-level compression by applying tensor-level
-        # compression to individual layers
-        
         if target_modules is None:
             target_modules = self._get_default_target_modules()
-        
+
         compressed_tensors = {}
         total_original_size = 0
         total_compressed_size = 0
         compression_stats = {}
-        
+
         for module_name in target_modules:
             module = self._get_module_by_name(model, module_name)
-            if module and hasattr(module, 'weight') and module.weight is not None:
-                # Apply tensor-level compression to this module's weight
+            if module and hasattr(module, "weight") and module.weight is not None:
                 compressed = self.compress(module.weight, **params)
-                
+
                 compressed_tensors[module_name] = compressed
-                
+
                 original_size = module.weight.numel()
-                if hasattr(compressed, 'factors'):
+                if hasattr(compressed, "factors"):
                     if isinstance(compressed.factors, list):
-                        compressed_size = sum(factor.numel() for factor in compressed.factors)
+                        compressed_size = sum(
+                            factor.numel() for factor in compressed.factors
+                        )
                     else:
                         compressed_size = compressed.factors.numel()
-                elif hasattr(compressed, 'size'):
+                elif hasattr(compressed, "size"):
                     compressed_size = compressed.size()
                 else:
-                    compressed_size = original_size  # Fallback
-                
+                    compressed_size = original_size
+
                 total_original_size += original_size
                 total_compressed_size += compressed_size
                 compression_stats[module_name] = {
-                    "compression_ratio": original_size / compressed_size if compressed_size > 0 else 1.0,
+                    "compression_ratio": (
+                        original_size / compressed_size if compressed_size > 0 else 1.0
+                    ),
                     "original_size": original_size,
-                    "compressed_size": compressed_size
+                    "compressed_size": compressed_size,
                 }
-        
-        overall_compression_ratio = total_original_size / total_compressed_size if total_compressed_size > 0 else 1.0
-        
+
+        overall_compression_ratio = (
+            total_original_size / total_compressed_size
+            if total_compressed_size > 0
+            else 1.0
+        )
+
         return TensorCompressionResult(
             compressed_tensors=compressed_tensors,
             total_compression_ratio=overall_compression_ratio,
-            compression_time=0.0,  # Will be set by caller
+            compression_time=0.0,
             method=f"{self.__class__.__name__.lower()}",
             parameters={
                 "target_modules": target_modules,
                 "compression_stats": compression_stats,
                 "total_original_size": total_original_size,
-                "total_compressed_size": total_compressed_size
-            }
+                "total_compressed_size": total_compressed_size,
+            },
         )
-    
+
     def _get_module_by_name(self, model, module_name: str):
         """Get a module from model by name"""
         try:
-            parts = module_name.split('.')
+            parts = module_name.split(".")
             current_module = model
-            
+
             for part in parts:
                 if hasattr(current_module, part):
                     current_module = getattr(current_module, part)
                 else:
                     return None
-            
+
             return current_module
         except Exception:
             return None
-    
+
     def _get_default_target_modules(self) -> List[str]:
         """Get default list of module names to compress - can be overridden"""
         return [
-            "transformer.wte",      # Word token embedding
-            "transformer.wpe",      # Word position embedding
-            "lm_head",              # Language model head
-            "score",                # Score/classification head
-            "classifier"             # Classifier head
+            "transformer.wte",
+            "transformer.wpe",
+            "lm_head",
+            "score",
+            "classifier",
         ]
+
+
+# Backward-compat name expected by some tests
+class TensorCompressionPlugin(LowRankCompressionPlugin):
+    pass
     
     # Tensor-level interface (existing Plugin interface)
     @abstractmethod
@@ -449,6 +453,17 @@ class ModelCompressionPlugin(Plugin):
                     source=self.name
                 )
             raise
+
+    def do_execute(
+        self,
+        context=None,
+        model: Optional[torch.nn.Module] = None,
+        **params,
+    ) -> TensorCompressionResult:
+        """Execute through the shared Plugin lifecycle."""
+        if model is None:
+            raise ValueError(f"{self.__class__.__name__} requires a 'model' input")
+        return self._execute_impl(model, **params)
     
     @abstractmethod
     def compress_model(self, model: torch.nn.Module, **params) -> TensorCompressionResult:

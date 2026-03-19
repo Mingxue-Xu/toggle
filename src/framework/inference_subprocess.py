@@ -217,7 +217,7 @@ def _load_model_and_tokenizer(
         manifest = Path(model_id) / "manifest.json"
         safetensors_path = Path(model_id) / "model.safetensors"
         if manifest.exists() and safetensors_path.exists():
-            from src.framework.compressed_io import load_compressed_from_safetensors
+            from .compressed_io import load_compressed_from_safetensors
             data = json.loads(manifest.read_text())
             base_model = data.get("base_model")
             tokenizer = None
@@ -343,7 +343,7 @@ def run_from_args(args: argparse.Namespace) -> int:
                 if args.sync_gpu and torch.cuda.is_available():
                     torch.cuda.synchronize()
 
-    from src.framework.memory_profiler import MemoryProfiler
+    from .memory_profiler import MemoryProfiler
     profiler = MemoryProfiler()
 
     with profiler.profile_execution(args.phase_name, sync_gpu=args.sync_gpu) as _p:

@@ -9,7 +9,7 @@ from ...framework.plugins import Plugin, PluginMetadata
 
 # Configuration dataclass and loader (merged from pruning_config.py)
 from dataclasses import dataclass
-from src.config.loader import ConfigurationLoader
+from ...config.loader import ConfigurationLoader
 
 
 @dataclass(frozen=True)
@@ -32,9 +32,10 @@ def load_pruning_config(config_path: Path | str) -> PruningConfig:
     cfg = loader.load_config(Path(config_path))
     pruning: Dict[str, Any] = (cfg or {}).get("pruning") or {}
 
-    report_path = Path(pruning.get("report_path"))
-    if not report_path:
+    raw_report_path = pruning.get("report_path")
+    if not raw_report_path:
         raise ValueError("pruning.report_path is required")
+    report_path = Path(raw_report_path)
 
     return PruningConfig(
         report_path=report_path,

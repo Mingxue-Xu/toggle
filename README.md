@@ -2,8 +2,11 @@
 
 LLM compression framework focusing on low-rank factorization (matrices and tensors), taking charge your whole experiment pipelines (compression, evaluation, profiling and logging).
 
-P.S. The current codebase seems a bit slop, both human and agent contributors are investigating it. 
 
+### Latest
+**Mar. 19th**: Fixed the slop with Codex. Working with agents of different "tastes" is helpful! More documentation is coming...
+
+**Mar. 18th**: The current codebase seems a bit slop, both human and agent (Claude Code) contributors are investigating it.
 ## Features
 
 | Category | Options |
@@ -29,7 +32,6 @@ pip install -r requirements.txt
 Create a YAML config file specifying your compression pipeline, this is an example:
 
 ```yaml
-# config/my_compression.yaml
 model:
   name: Qwen/Qwen3-14B
   source: hf
@@ -77,7 +79,7 @@ python scripts/examples/gpu/h100_activation_svd.py --config config/h100_activati
 
 ### CPU Examples (`scripts/examples/cpu/`)
 
-Lightweight scripts for small models and development/testing:
+Lightweight scripts for development and testing.
 
 | Script | Description |
 |--------|-------------|
@@ -94,7 +96,7 @@ Lightweight scripts for small models and development/testing:
 
 ### GPU Examples (`scripts/examples/gpu/`)
 
-H100-optimized scripts with enhanced memory management for large models:
+GPU scripts for H100 and H200 workloads:
 
 | Script | Description |
 |--------|-------------|
@@ -106,6 +108,14 @@ H100-optimized scripts with enhanced memory management for large models:
 | `h100_cp.py` | CP (CANDECOMP/PARAFAC) decomposition (H100) |
 | `h100_tensor_train.py` | Tensor-Train decomposition (H100) |
 | `h100_weight_pruning.py` | Weight pruning compression (H100) |
+| `h200_activation_svd.py` | Activation-guided SVD compression (H200) |
+| `h200_entropy_svd.py` | Entropy-based rank selection (H200) |
+| `h200_hybrid_mi.py` | Mutual information hybrid compression (H200) |
+| `h200_full_pipeline.py` | Complete analysis + compression + evaluation (H200) |
+| `h200_tucker.py` | Tucker decomposition compression (H200) |
+| `h200_cp.py` | CP (CANDECOMP/PARAFAC) decomposition (H200) |
+| `h200_tensor_train.py` | Tensor-Train decomposition (H200) |
+| `h200_weight_pruning.py` | Weight pruning compression (H200) |
 | `asvd_svdllm_pipeline.py` | Combined ASVD and SVD-LLM pipeline |
 | `benchmark_reproducibility.py` | Reproducibility benchmarks |
 | `perplexity_evaluation.py` | Perplexity evaluation utilities |
@@ -130,16 +140,17 @@ H100-optimized scripts with enhanced memory management for large models:
 
 ```
 toggle/
-├── config/
-│   ├── base/              # Base YAML configuration files
-│   └── profiles/          # Profile-specific configs (eval/, profile/)
-├── docs/                  # Documentation (remote_runs.md, successful_runs.md)
+├── config/                # Experiment configs plus base/ and profiles/
+│   ├── base/
+│   └── profiles/
+├── docs/                  # Documentation and changelogs
 ├── logs/                  # Runtime logs
 ├── scripts/
 │   ├── bash/              # Shell scripts (cpu/, gpu/, third-party/)
 │   ├── examples/          # Python examples (cpu/, gpu/, third-party/)
 │   ├── logs/              # Script execution logs
 │   └── utils/             # Utility scripts
+├── tests/                 # Pytest regression and integration suite
 └── src/
     ├── config/            # Config loader
     ├── framework/         # Core framework (layers, state, IO)
@@ -154,5 +165,6 @@ toggle/
 ## Documentation
 
 - [Architecture](docs/architecture.md) — Plugin-based design, EventBus, and workflow system
+- [Changelogs](docs/changelogs.md) — Notes on recent fixes
 - [Remote Runs Guide](docs/remote_runs.md) — Instructions for running on GPU servers
 - [Successful Runs](docs/successful_runs.md) — H200 GPU benchmark results (7 compression strategies, third-party tests)

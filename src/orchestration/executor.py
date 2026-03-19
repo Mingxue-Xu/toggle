@@ -13,9 +13,9 @@ from concurrent.futures import ThreadPoolExecutor, Future, TimeoutError
 from contextlib import contextmanager
 
 
-from src.framework.context import PipelineContext
-from src.framework.events import PipelineEvent
-from src.framework.plugins import PluginRegistry, Plugin
+from ..framework.context import PipelineContext
+from ..framework.events import PipelineEvent
+from ..framework.plugins import PluginRegistry, Plugin
 
 from .workflow import Workflow, WorkflowStep, StepStatus
 
@@ -172,6 +172,8 @@ class WorkflowExecutor:
         
         self.logger.info(f"Executing step '{step.name}' with plugin '{step.plugin}'")
         
+        plugin = None
+
         try:
             # Check condition before execution
             workflow_results = workflow.get_step_results()
@@ -181,13 +183,13 @@ class WorkflowExecutor:
                 self.logger.info(f"Step '{step.name}' skipped: {reason}")
                 return None
             
-            # Create plugin instance
-            plugin_config = {**workflow.get_plugin_config(step.plugin), **step.config}
+            # Create plugin instance from workflow-level constructor config only.
+            plugin_config = workflow.get_plugin_config(step.plugin)
             plugin = self.plugin_registry.create_plugin(step.plugin, **plugin_config)
             plugin.initialize(self.context)
             
             # Prepare execution parameters
-            execution_params = {}
+            execution_params = dict(step.config)
             
             # Add model and tokenizer from context if available
             if hasattr(self.context, 'state') and self.context.state:
@@ -195,8 +197,9 @@ class WorkflowExecutor:
                     execution_params['model'] = self.context.state.model
                 if hasattr(self.context.state, 'tokenizer') and self.context.state.tokenizer is not None:
                     execution_params['tokenizer'] = self.context.state.tokenizer
-            
-            # Execute plugin with timeout
+
+            # Execute plugin with timeout, forwarding runtime step config.
+            execution_params["context"] = self.context
             result = self._execute_with_timeout(plugin, step, **execution_params)
             
             # Record execution time and mark as completed
@@ -241,10 +244,11 @@ class WorkflowExecutor:
         
         finally:
             # Cleanup plugin if needed
-            try:
-                plugin.cleanup()
-            except:
-                pass  # Ignore cleanup errors
+            if plugin is not None:
+                try:
+                    plugin.cleanup()
+                except Exception:
+                    pass  # Ignore cleanup errors
     
     def _execute_with_timeout(self, plugin: Plugin, step: WorkflowStep, **execution_params) -> Any:
         """
