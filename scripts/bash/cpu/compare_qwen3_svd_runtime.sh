@@ -30,8 +30,8 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 COMMANDS=(
   "scripts/examples/cpu/svd_qwen3.py --cola no"
   "scripts/examples/cpu/svd_qwen3.py --cola yes"
-  "scripts/examples/cpu/profile_compressed.py --config config/svd_qwen3.yaml --cola no"
-  "scripts/examples/cpu/profile_compressed.py --config config/svd_qwen3.yaml --cola yes"
+  "scripts/examples/cpu/profile_compressed.py --config config/profiles/profile/svd_qwen3.yaml --cola no"
+  "scripts/examples/cpu/profile_compressed.py --config config/profiles/profile/svd_qwen3.yaml --cola yes"
 )
 NAMES=(
   "svd_qwen3_no_cola"

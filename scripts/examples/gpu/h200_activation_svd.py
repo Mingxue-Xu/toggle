@@ -65,7 +65,7 @@ def _resolve_path(path_like: str | Path) -> Path:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="H200 GPU Activation-Guided SVD Compression")
-    parser.add_argument("--config", default="config/h200_activation_svd.yaml", help="Config YAML path")
+    parser.add_argument("--config", default=None, help="Optional config YAML path")
     parser.add_argument("--model", default=None, help="Override model name")
     parser.add_argument("--workspace", default=None, help="Override workspace directory")
     parser.add_argument("--preset", choices=["quick", "mid", "large", "flagship"], default=None,
@@ -118,11 +118,14 @@ def main():
         raise RuntimeError("H200 GPU activation SVD requires CUDA. No GPU detected.")
 
     # Load config or use defaults
-    cfg_path = _resolve_path(args.config)
-    if cfg_path.exists():
-        cfg = yaml.safe_load(cfg_path.read_text())
+    if args.config:
+        cfg_path = _resolve_path(args.config)
+        if cfg_path.exists():
+            cfg = yaml.safe_load(cfg_path.read_text())
+        else:
+            print(f"[h200_activation_svd] Config not found, using defaults")
+            cfg = get_default_config()
     else:
-        print(f"[h200_activation_svd] Config not found, using defaults")
         cfg = get_default_config()
 
     # Handle model selection

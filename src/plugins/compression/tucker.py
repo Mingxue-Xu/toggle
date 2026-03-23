@@ -112,24 +112,6 @@ class Tucker(LowRankCompressionPlugin):
         
         return self._reconstruct_from_tucker_factors(compressed.factors)
     
-    def estimate_compression_ratio(self, tensor: torch.Tensor, **params) -> float:
-        """
-        Estimate compression ratio without performing actual compression
-        
-        Args:
-            tensor: Input tensor
-            **params: Additional parameters (ignored)
-            
-        Returns:
-            Estimated compression ratio
-        """
-        original_size = tensor.numel()
-        
-        # Estimate Tucker factor sizes
-        estimated_compressed_size = self._estimate_tucker_size(tensor.shape, self.tucker_ranks)
-        
-        return original_size / estimated_compressed_size if estimated_compressed_size > 0 else 0.0
-    
     def validate_tensor_compatibility(self, tensor: torch.Tensor) -> bool:
         """
         Check if tensor is compatible with Tucker decomposition

@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Union, Any
@@ -488,7 +488,7 @@ def save_compressed_to_safetensors(
     manifest_to_save = dict(manifest)
     manifest_to_save["_versioning"] = {
         "config_hash": config_hash(manifest),
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "seed": get_seed(),
         "reproducibility": get_reproducibility_info(),
     }

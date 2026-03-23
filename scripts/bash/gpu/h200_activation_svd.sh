@@ -9,6 +9,4 @@ echo "=========================================="
 echo "H200 GPU Activation-Guided SVD Compression"
 echo "=========================================="
 
-python "${ROOT}/scripts/examples/gpu/h200_activation_svd.py" \
-  --config "${ROOT}/config/h200_activation_svd.yaml" \
-  "$@"
+python "${ROOT}/scripts/examples/gpu/h200_activation_svd.py" "$@"

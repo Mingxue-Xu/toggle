@@ -307,20 +307,6 @@ class TensorCompressionPlugin(LowRankCompressionPlugin):
         """
         pass
     
-    @abstractmethod
-    def estimate_compression_ratio(self, tensor: torch.Tensor, **params) -> float:
-        """
-        Estimate compression ratio without performing actual compression
-        
-        Args:
-            tensor: Input tensor
-            **params: Strategy-specific parameters
-            
-        Returns:
-            Estimated compression ratio
-        """
-        pass
-    
     def validate_tensor_compatibility(self, tensor: torch.Tensor) -> bool:
         """
         Check if tensor is compatible with this compression strategy

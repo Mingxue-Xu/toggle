@@ -35,8 +35,9 @@ class MetricsBackend:
 class BasicMetricsBackend(MetricsBackend):
     """Minimal built-in metric set."""
 
-    def __init__(self):
+    def __init__(self, *, include_advanced: bool = False):
         self._metrics = {
+            "compute_lda_matrix": self._compute_lda_matrix,
             "l2_norm": self._l2_norm,
             "l1_norm": self._l1_norm,
             "mean": self._mean,
@@ -44,6 +45,11 @@ class BasicMetricsBackend(MetricsBackend):
             "sparsity": self._sparsity,
             "max_abs": self._max_abs,
         }
+        if include_advanced:
+            self._metrics.update({
+                "entropy": self._entropy,
+                "stable_rank": self._stable_rank,
+            })
 
     def list_metrics(self) -> Dict[str, Callable[[torch.Tensor], Any]]:
         return self._metrics
@@ -51,6 +57,21 @@ class BasicMetricsBackend(MetricsBackend):
     # Metric implementations
     def _l2_norm(self, t: torch.Tensor) -> float:
         return float(torch.linalg.vector_norm(t.float()).item())
+
+    def _compute_lda_matrix(self, t: torch.Tensor) -> torch.Tensor:
+        """Return a covariance-like matrix from activations for downstream reductions."""
+        x = t.detach().float()
+        if x.numel() == 0:
+            return torch.zeros((0, 0), dtype=torch.float32)
+        if x.ndim == 0:
+            x = x.reshape(1, 1)
+        elif x.ndim == 1:
+            x = x.reshape(1, -1)
+        else:
+            x = x.reshape(-1, x.shape[-1])
+        x = x - x.mean(dim=0, keepdim=True)
+        denom = max(1, x.shape[0] - 1)
+        return (x.T @ x) / denom
 
     def _l1_norm(self, t: torch.Tensor) -> float:
         return float(torch.linalg.norm(t.float(), ord=1).item())
@@ -70,6 +91,58 @@ class BasicMetricsBackend(MetricsBackend):
 
     def _max_abs(self, t: torch.Tensor) -> float:
         return float(torch.max(torch.abs(t.float())).item())
+
+    def _as_matrix(self, t: torch.Tensor) -> torch.Tensor:
+        x = t.detach().float()
+        if x.numel() == 0:
+            return torch.zeros((0, 0), dtype=torch.float32)
+        if x.ndim == 0:
+            return x.reshape(1, 1)
+        if x.ndim == 1:
+            return x.reshape(1, -1)
+        return x.reshape(-1, x.shape[-1])
+
+    def _stable_rank(self, t: torch.Tensor) -> float:
+        m = self._as_matrix(t)
+        if m.numel() == 0:
+            return 0.0
+        fro_sq = float(torch.sum(m * m).item())
+        if fro_sq <= 0.0:
+            return 0.0
+        try:
+            spec = float(torch.linalg.matrix_norm(m, ord=2).item())
+        except Exception:
+            svals = torch.linalg.svdvals(m)
+            spec = float(svals.max().item()) if svals.numel() > 0 else 0.0
+        if spec <= 0.0:
+            return 0.0
+        return float(fro_sq / (spec * spec))
+
+    def _entropy(self, t: torch.Tensor) -> float:
+        """Normalized spectral entropy in [0, 1]."""
+        m = self._as_matrix(t)
+        if m.numel() == 0:
+            return 0.0
+        try:
+            svals = torch.linalg.svdvals(m)
+        except Exception:
+            return 0.0
+        if svals.numel() <= 1:
+            return 0.0
+        energy = svals.square()
+        total = float(energy.sum().item())
+        if total <= 0.0:
+            return 0.0
+        probs = energy / total
+        nonzero = probs > 0
+        probs = probs[nonzero]
+        if probs.numel() <= 1:
+            return 0.0
+        entropy = float((-torch.sum(probs * torch.log(probs))).item())
+        max_entropy = float(torch.log(torch.tensor(float(probs.numel()))).item())
+        if max_entropy <= 0.0:
+            return 0.0
+        return float(max(0.0, min(1.0, entropy / max_entropy)))
 
 
 class ExternalMetricsBackend(MetricsBackend):
@@ -187,4 +260,3 @@ class ExternalMetricsBackend(MetricsBackend):
                 export_name = export_name[len(self.name_prefix) :]
             self._registry[export_name.lower()] = obj  # store lower-case key
         self._provenance = {"found": True, "module_path": path, "load_method": method}
-

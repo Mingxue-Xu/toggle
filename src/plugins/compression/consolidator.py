@@ -5,8 +5,12 @@ ModelConsolidator Plugin for Toggle Architecture
 This plugin implements model consolidation and direct compression strategies,
 including the DirectConsolidated approach mentioned in the migration strategy.
 """
-import time
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
+from tensorly.cp_tensor import CPTensor
+from tensorly.tucker_tensor import TuckerTensor
+from tensorly.tt_tensor import TTTensor
+from .base import CompressedTensor
+
 import torch
 
 from ...framework.plugins import Plugin
@@ -330,25 +334,20 @@ class ModelConsolidator(Plugin):
         print(f"\n=== MODEL ANALYSIS ===")
         print(f"Model type: {type(model).__name__}")
         print(f"Target modules for compression: {self.target_modules}")
-        
-        print(f"\n=== ORIGINAL MODEL STRUCTURE ===")
-        # print(model)
 
         available_modules = []
         for name, module in model.named_modules():          # NOTE: The current implementation is compressed all the modules with the same structure
-            if hasattr(module, 'weight') and module.weight is not None:
-                available_modules.append((name, type(module).__name__, module.weight.shape, module.weight.numel()))
+            if not hasattr(module, 'weight') or module.weight is None:
+                continue
+
+            weight = module.weight
+            if hasattr(weight, 'shape') and hasattr(weight, 'numel'):
+                available_modules.append((name, type(module).__name__, weight.shape, weight.numel()))
 
         # Extract compression parameters from params or use defaults
         target_tensor_size = params.get("tensor_size")
         granularity = params.get("granularity", "matrix")
-        
-        # print(f"\n=== COMPRESSION PROCESS ===")
-        # print(f"Compression method: {self.compression_method}")
-        # print(f"Target tensor size: {target_tensor_size}")
-        # print(f"Granularity: {granularity}")
-        
-        # Expand wildcard targets (e.g., layers[*], layers[0:4]) into concrete paths
+
         concrete_targets = self._expand_target_modules(model, self.target_modules)
         found_modules = []
         
@@ -362,15 +361,6 @@ class ModelConsolidator(Plugin):
                     continue
                 for expanded in self._expand_target_modules(model, [pattern]):
                     expanded_override_map[expanded] = override
-
-        def pick_override(module_path: str) -> Optional[Dict[str, Any]]:
-            # Find the longest matching override prefix
-            best = None
-            for prefix, cfg in expanded_override_map.items():
-                if module_path.startswith(prefix):
-                    if best is None or len(prefix) > len(best[0]):
-                        best = (prefix, cfg)
-            return best[1] if best else None
 
         # Process each target module
         for module_name in concrete_targets:
@@ -435,17 +425,6 @@ class ModelConsolidator(Plugin):
         # Get the parameter tensor
         if hasattr(target_module, 'weight') and target_module.weight is not None:
             parameter_tensor = target_module.weight.data
-            
-            # # Print detailed layer information BEFORE compression
-            # print(f"\n=== BEFORE COMPRESSION: Module '{module_name}' ===")
-            # print(f"Module type: {type(target_module).__name__}")
-            # print(f"Original tensor shape: {parameter_tensor.shape}")
-            # print(f"Original tensor size: {parameter_tensor.numel():,} parameters")
-            # print(f"Data type: {parameter_tensor.dtype}")
-            # print(f"Device: {parameter_tensor.device}")
-            # if len(parameter_tensor.shape) >= 2:
-            #     print(f"Matrix dimensions: {parameter_tensor.shape[0]} x {parameter_tensor.shape[1]}")
-            # print(f"Memory usage: {parameter_tensor.numel() * 4 / 1024 / 1024:.2f} MB (assuming float32)")
             
         else:
             self.logger.warning(f"Module '{module_name}' has no weight parameter")
@@ -567,11 +546,31 @@ class ModelConsolidator(Plugin):
             compressed_tensors[key] = compressed_vector
             
             # Calculate compressed size
-            if hasattr(compressed_vector.factors, '__len__') and not isinstance(compressed_vector.factors, torch.Tensor):
-                # Multiple factors
-                vector_compressed_size = sum(
-                    factor.numel() for factor in compressed_vector.factors
-                )
+            # SVD
+            if hasattr(compressed_vector, 's') and hasattr(compressed_vector, 'u') and hasattr(compressed_vector, 'vt'):
+                vector_compressed_size = compressed_vector.s.numel()+compressed_vector.vt.numel()+compressed_vector.u.numel()
+            # Tucker/TT/CP
+            elif hasattr(compressed_vector, 'factors'):
+
+                if hasattr(compressed_vector.factors, '__len__') and not isinstance(compressed_vector.factors, torch.Tensor):
+                    # Multiple factors
+                    if isinstance(compressed_vector.factors,TuckerTensor):
+                        vector_compressed_size = sum(
+                            factor.numel() for factor in compressed_vector.factors.factors
+                        )+ compressed_vector.factors.core.numel()
+                    elif isinstance(compressed_vector.factors,CPTensor) or isinstance(compressed_vector.factors,TTTensor): # CP or TensorTrain
+                        vector_compressed_size = sum(
+                            factor.numel() for factor in compressed_vector.factors.factors
+                        )
+                    elif isinstance(compressed_vector, CompressedTensor):
+                        # TODO: At the moment it seems only the case for TT, why Tucker and CP fall into other category?
+                        if compressed_vector.method=="tensor_train":
+                            vector_compressed_size = sum(
+                                factor.numel() for factor in compressed_vector.factors
+                            )
+                else:
+                    # Single tensor
+                    vector_compressed_size = compressed_vector.factors.numel()
             else:
                 # Single tensor
                 vector_compressed_size = compressed_vector.factors.numel()
@@ -606,12 +605,25 @@ class ModelConsolidator(Plugin):
         
         # Calculate compressed size - handle different compression result types
         if hasattr(compressed_tensor, 'factors'):
+
             # Tensor Train and Tucker decomposition results
+
             if hasattr(compressed_tensor.factors, '__len__') and not isinstance(compressed_tensor.factors, torch.Tensor):
                 # Multiple factors
-                compressed_size = sum(
-                    factor.numel() for factor in compressed_tensor.factors
-                )
+                if isinstance(compressed_tensor.factors,TuckerTensor):
+                    compressed_size = sum(
+                        factor.numel() for factor in compressed_tensor.factors.factors
+                    )+ compressed_tensor.factors.core.numel()
+                elif isinstance(compressed_tensor.factors,CPTensor) or isinstance(compressed_tensor.factors,TTTensor): # CP or TensorTrain
+                    compressed_size = sum(
+                        factor.numel() for factor in compressed_tensor.factors.factors
+                    )
+                elif isinstance(compressed_tensor, CompressedTensor):
+                    # TODO: At the moment it seems only the case for TT, why Tucker and CP fall into other category?
+                    if compressed_tensor.method=="tensor_train":
+                        compressed_size = sum(
+                            factor.numel() for factor in compressed_tensor.factors
+                        )
             else:
                 # Single tensor
                 compressed_size = compressed_tensor.factors.numel()
@@ -731,61 +743,88 @@ class ModelConsolidator(Plugin):
         
         self.logger.info(f"Replaced layer '{layer_name}' with {type(new_layer).__name__}")
     
+    def _is_embedding_layer(self, layer) -> bool:
+        return (
+            hasattr(layer, 'num_embeddings')
+            and hasattr(layer, 'embedding_dim')
+            and hasattr(layer, 'weight')
+        )
+
+    def _is_linear_layer(self, layer) -> bool:
+        return (
+            hasattr(layer, 'in_features')
+            and hasattr(layer, 'out_features')
+            and hasattr(layer, 'weight')
+        )
+
+    def _is_svd_compressed(self, compressed_data) -> bool:
+        return all(hasattr(compressed_data, attr) for attr in ('u', 's', 'vt'))
+
+    def _copy_linear_bias(self, original_layer, new_layer) -> None:
+        original_bias = getattr(original_layer, 'bias', None)
+        new_bias = getattr(new_layer, 'bias', None)
+
+        if original_bias is None:
+            if new_bias is not None:
+                new_layer.register_parameter('bias', None)
+            return
+
+        if new_bias is None:
+            new_layer.bias = torch.nn.Parameter(
+                original_bias.detach().clone(),
+                requires_grad=original_bias.requires_grad,
+            )
+            return
+
+        with torch.no_grad():
+            new_bias.copy_(original_bias)
+
+    def _create_compressed_linear_layer(self, original_layer, compressed_data: CompressedTensor):
+        from ...framework.layers import FactorLinear
+
+        if self._is_svd_compressed(compressed_data):
+            layer = self.compression_strategy.create_layer(
+                compressed_data, original_layer.weight.shape
+            )
+        else:
+            factor_layer = self._create_factor_layer_from_compressed_data(compressed_data)
+            layer = FactorLinear(
+                in_features=original_layer.in_features,
+                out_features=original_layer.out_features,
+                _weight=factor_layer,
+                bias=original_layer.bias is not None
+            )
+            if hasattr(factor_layer, 'func_name'):
+                layer.func_name = getattr(factor_layer, 'func_name', layer.func_name)
+
+        self._copy_linear_bias(original_layer, layer)
+        return layer
+
     def _create_compressed_layer(self, original_layer, compressed_data: CompressedTensor):
         """
-        Create FactorEmbedding or FactorLinear layer from compressed data
+        Create a supported layer from matrix-level compressed data.
         
         Args:
             original_layer: Original layer from the model
             compressed_data: CompressedTensor containing factorized data
             
         Returns:
-            FactorEmbedding or FactorLinear layer based on original layer type
+            FactorLinear for supported matrix-level compressed layers
             
         Raises:
             ValueError: If layer type is not supported
         """
-        from ...framework.layers import FactorEmbedding, FactorLinear, FactorLayer, Factor
-
-        # Specialized path for SVD compressed data (detect by attributes)
-        if hasattr(compressed_data, 'u') and hasattr(compressed_data, 's'):
-            layer = self.compression_strategy.create_layer(
-                compressed_data, original_layer.weight.shape
+        if self._is_embedding_layer(original_layer):
+            raise ValueError(
+                "Matrix-level compressed embeddings are unsupported. "
+                "Use vector granularity so the consolidator can build one "
+                "FactorLayer per token."
             )
-            if isinstance(layer, FactorLinear):
-                if original_layer.bias is not None:
-                    layer.bias = original_layer.bias
-                else:
-                    layer.bias = None
-            return layer
 
+        if self._is_linear_layer(original_layer):
+            return self._create_compressed_linear_layer(original_layer, compressed_data)
 
-        # Check layer type and create appropriate compressed layer
-        if hasattr(original_layer, 'num_embeddings') and hasattr(original_layer, 'embedding_dim'):
-            # Create FactorEmbedding for embedding layers
-            factor_layer = self._create_factor_layer_from_compressed_data(compressed_data)
-            # Create FactorEmbedding with the factor layer as the weight
-            return FactorEmbedding(
-                _num_embeddings=original_layer.num_embeddings,
-                _embedding_dim=original_layer.embedding_dim,
-                _weight=[factor_layer]  # Pass as ModuleList
-            )
-            
-        elif hasattr(original_layer, 'in_features') and hasattr(original_layer, 'out_features'):
-            # Create FactorLinear for linear layers  
-            factor_layer = self._create_factor_layer_from_compressed_data(compressed_data)
-            factor_linear = FactorLinear(
-                in_features=original_layer.in_features,
-                out_features=original_layer.out_features,
-                _weight=factor_layer,
-                bias=original_layer.bias is not None
-            )
-            # Ensure func_name on the linear layer reflects the underlying factorization method
-            if hasattr(factor_layer, 'func_name'):
-                factor_linear.func_name = getattr(factor_layer, 'func_name', factor_linear.func_name)
-            return factor_linear
-        else:
-            raise ValueError(f"Unsupported layer type for compression: {type(original_layer)}")
+        raise ValueError(f"Unsupported layer type for compression: {type(original_layer)}")
     
     def _create_factor_layer_from_compressed_data(self, compressed_data: CompressedTensor) -> 'FactorLayer':
         """
@@ -833,9 +872,28 @@ class ModelConsolidator(Plugin):
             # Generic low-rank path expects a list of factor tensors on the result
             factors_data = compressed_data.factors  # List of factor tensors
             factors = []
-            for factor_tensor in factors_data:
-                factor = Factor(_weight=factor_tensor.clone())
+            if isinstance(factors_data, TuckerTensor):
+                for factor_tensor in factors_data:
+                    if isinstance(factor_tensor, list): # non-core tensor for TuckerTensor
+                        if len(factors) != 1: # Core tensor should already be added in the factors before
+                            raise ValueError(f"Tucker decomposition: expected exactly 1 core tensor first and then factor tensors")
+                        for factor_t in factor_tensor:
+                            factor = Factor(_weight=factor_t.clone())
+                            factors.append(factor)
+                    else:
+                        factor = Factor(_weight=factor_tensor.clone())
+                        factors.append(factor)
+            elif isinstance(factors_data, CPTensor):
+                # Store weights as factor[0], then factor matrices
+                factor = Factor(_weight=factors_data.weights.clone())
                 factors.append(factor)
+                for factor_t in factors_data.factors:
+                    factor = Factor(_weight=factor_t.clone())
+                    factors.append(factor)
+            elif isinstance(factors_data, TTTensor):
+                for factor_t in factors_data.factors:
+                    factor = Factor(_weight=factor_t.clone())
+                    factors.append(factor)
             factor_layer = FactorLayer(_factors=factors)
             factor_layer.func_name = method_name  # Set correct function name
             return factor_layer
@@ -897,7 +955,7 @@ class ModelConsolidator(Plugin):
                 vector_keys = [k for k in module_keys if k.startswith(f"{module_name}_vector_")]
                 matrix_key = next((k for k in module_keys if k.endswith("_matrix")), None)
                 
-                if vector_keys and hasattr(original_layer, 'num_embeddings'):
+                if vector_keys and self._is_embedding_layer(original_layer):
                     compressed_layer = self._build_embedding_from_vector_compressions(
                         module_name, original_layer, compression_result.compressed_tensors
                     )
@@ -927,7 +985,6 @@ class ModelConsolidator(Plugin):
                 }
 
                 layers_replaced.append(module_name)
-                # print(f"{module_name} replaced succesfully!")
 
             except (ValueError, RuntimeError, TypeError) as e:
                 self.logger.error(f"Model surgery failed for {module_name}: {e}")
@@ -1005,7 +1062,7 @@ class ModelConsolidator(Plugin):
         for i in range(expected):
             compressed_data = indexed[i]
             # SVD per-vector path: CompressedSVDTensor has attributes u/s/vt
-            if hasattr(compressed_data, 'u') and hasattr(compressed_data, 's') and hasattr(compressed_data, 'vt'):
+            if self._is_svd_compressed(compressed_data):
                 u, s, vt = compressed_data.u, compressed_data.s, compressed_data.vt
                 s_mat = torch.diag(s) if hasattr(s, 'dim') and s.dim() == 1 else s
                 factors = [Factor(_weight=u.clone()), Factor(_weight=s_mat.clone()), Factor(_weight=vt.clone())]
@@ -1014,27 +1071,40 @@ class ModelConsolidator(Plugin):
 
             # Generic low-rank path with explicit factors
             elif hasattr(compressed_data, 'factors'):
+                factors_data = compressed_data.factors
                 factors = []
-                for factor_tensor in compressed_data.factors:
-                    factor = Factor(_weight=factor_tensor.clone())
+                if isinstance(factors_data, TuckerTensor):
+                    for factor_tensor in factors_data:
+                        if isinstance(factor_tensor, list):  # non-core tensor for TuckerTensor
+                            if len(factors) != 1:  # Core tensor should already be added
+                                raise ValueError(f"Tucker decomposition: expected exactly 1 core tensor first and then factor tensors")
+                            for factor_t in factor_tensor:
+                                factor = Factor(_weight=factor_t.clone())
+                                factors.append(factor)
+                        else:
+                            factor = Factor(_weight=factor_tensor.clone())
+                            factors.append(factor)
+                    method_name = 'tucker'
+                elif isinstance(factors_data, CPTensor):
+                    # Store weights as factor[0], then factor matrices
+                    factor = Factor(_weight=factors_data.weights.clone())
                     factors.append(factor)
+                    for factor_t in factors_data.factors:
+                        factor = Factor(_weight=factor_t.clone())
+                        factors.append(factor)
+                    method_name = 'cp'
+                elif isinstance(factors_data, TTTensor):
+                    for factor_t in factors_data.factors:
+                        factor = Factor(_weight=factor_t.clone())
+                        factors.append(factor)
+                    method_name = 'tensor_train'
+                else:
+                    # Plain list of tensors — fall back to generic handling
+                    for factor_tensor in factors_data:
+                        factor = Factor(_weight=factor_tensor.clone())
+                        factors.append(factor)
+                    method_name = getattr(compressed_data, 'method', None) or self.compression_method
                 factor_layer = FactorLayer(_factors=factors)
-                # Prefer method from compressed_data if present; otherwise infer by factor shapes
-                method_name = getattr(compressed_data, 'method', None)
-                if not method_name:
-                    # Heuristic inference
-                    if len(factors) == 3:
-                        s_w = getattr(factors[1], 'weight', None)
-                        if s_w is not None and hasattr(s_w, 'dim') and s_w.dim() in (1, 2):
-                            method_name = 'svd'
-                    if not method_name:
-                        # If any factor is 3D, assume tensor-train; else default to tucker
-                        method_name = 'tensor_train' if any(getattr(f, 'weight', torch.empty(0)).dim() == 3 for f in factors) else 'tucker'
-                # Guard against mismatched labeling: if S looks 3D, don't set SVD
-                if method_name == 'svd':
-                    s_w = getattr(factors[1], 'weight', None)
-                    if s_w is not None and hasattr(s_w, 'dim') and s_w.dim() > 2:
-                        method_name = 'tensor_train'
                 factor_layer.func_name = method_name
             else:
                 # Not supported for aggregation - raise explicit error

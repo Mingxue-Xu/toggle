@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -57,6 +58,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _to_bracket_module_path(path: str, group_prefix: str = "layers") -> str:
+    pattern = rf"(^|\.)(%s)\.(\d+)(?=\.|$)" % re.escape(group_prefix)
+    return re.sub(pattern, lambda m: f"{m.group(1)}{m.group(2)}[{m.group(3)}]", path)
+
+
 def main():
     args = parse_args()
 
@@ -91,7 +97,7 @@ def main():
     # Step 1: Weight Metrics Analysis
     print("[h200_entropy_svd] Analyzing weight metrics...")
     from src.plugins.analysis.metric_utils import BasicMetricsBackend
-    analyzer = WeightMetricsAnalyzer(backend=BasicMetricsBackend())
+    analyzer = WeightMetricsAnalyzer(backend=BasicMetricsBackend(include_advanced=True))
     t0 = time.perf_counter()
     per_layer = analyzer.analyze_model(
         model=model,
@@ -104,14 +110,24 @@ def main():
 
     # Step 2: Determine per-layer ranks based on entropy
     layer_ranks = {}
+    layer_metrics = {}
     min_rank, max_rank = 32, 256
 
     for layer in per_layer:
-        name = layer.get("name", "")
-        entropy = layer.get("values", {}).get("entropy", 0.5)
+        name = layer.get("name", "") or ""
+        module_path = name.removesuffix(".weight").removesuffix(".bias")
+        module_path = _to_bracket_module_path(module_path)
+        entropy = float(layer.get("values", {}).get("entropy", 0.5))
+        stable_rank = float(layer.get("values", {}).get("stable_rank", 0.0))
+        entropy = max(0.0, min(1.0, entropy))
         # Higher entropy = more information = higher rank
-        rank = int(min_rank + entropy * (max_rank - min_rank))
-        layer_ranks[name] = rank
+        rank = int(round(min_rank + entropy * (max_rank - min_rank)))
+        rank = max(min_rank, min(rank, max_rank))
+        layer_ranks[module_path] = rank
+        layer_metrics[module_path] = {
+            "entropy": entropy,
+            "stable_rank": stable_rank,
+        }
 
     # Step 3: Apply SVD Compression using per-layer entropy-based ranks
     print("[h200_entropy_svd] Applying SVD compression with entropy-based ranks...")
@@ -125,21 +141,13 @@ def main():
         "model.layers[*].mlp.down_proj",
     ]
 
-    # Build per-module overrides from entropy-based layer_ranks.
-    # layer_ranks maps full parameter names (e.g. "model.layers.0.self_attn.q_proj.weight")
-    # to ranks. We convert to module paths (without ".weight") for the consolidator.
     method_overrides = []
-    for param_name, rank_val in layer_ranks.items():
-        # Strip trailing ".weight" or ".bias" to get the module path
-        module_path = param_name
-        if module_path.endswith(".weight"):
-            module_path = module_path[:-len(".weight")]
-        elif module_path.endswith(".bias"):
-            module_path = module_path[:-len(".bias")]
+    for module_path, rank_val in layer_ranks.items():
         method_overrides.append({
             "pattern": module_path,
-            "method": "svd",
+            "func_name": "svd",
             "rank": rank_val,
+            "granularity": "matrix",
         })
 
     # Fallback global rank for any layers not in overrides
@@ -152,7 +160,11 @@ def main():
     fallback_rank = max(1, int(args.ratio * (sample_m * sample_n) / (sample_m + sample_n + 1)))
     fallback_rank = min(fallback_rank, min(sample_m, sample_n))
 
-    print(f"[h200_entropy_svd] Entropy rank range: {min(layer_ranks.values())}-{max(layer_ranks.values())}, "
+    if layer_ranks:
+        rank_range = f"{min(layer_ranks.values())}-{max(layer_ranks.values())}"
+    else:
+        rank_range = "n/a"
+    print(f"[h200_entropy_svd] Entropy rank range: {rank_range}, "
           f"fallback rank: {fallback_rank}, overrides: {len(method_overrides)}")
 
     consolidator = ModelConsolidator(
@@ -205,6 +217,7 @@ def main():
         "compression_ratio": ratio,
         "analysis_time_sec": analysis_time,
         "compression_time_sec": compress_time,
+        "layer_metrics": layer_metrics,
         "layer_ranks": layer_ranks,
         "gpu_memory_gb": get_gpu_memory_gb(),
     }

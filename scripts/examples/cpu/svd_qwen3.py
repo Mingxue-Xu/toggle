@@ -128,7 +128,7 @@ def _select_backend(use_cola: bool, svd_cfg: dict) -> tuple[str, dict]:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Activation-driven SVD on Qwen3-0.6B")
-    parser.add_argument("--config", default="config/svd_qwen3.yaml", help="Path to configuration YAML.")
+    parser.add_argument("--config", default="config/profiles/eval/svd_qwen3.yaml", help="Path to configuration YAML.")
     parser.add_argument(
         "--cola",
         choices=["yes", "no"],

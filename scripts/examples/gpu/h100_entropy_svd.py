@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -47,6 +48,18 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=None, help="Override model name")
     parser.add_argument("--workspace", default=None, help="Override workspace directory")
     return parser.parse_args()
+
+
+def _to_bracket_module_path(path: str, group_prefix: str = "layers") -> str:
+    pattern = rf"(^|\.)(%s)\.(\d+)(?=\.|$)" % re.escape(group_prefix)
+    return re.sub(pattern, lambda m: f"{m.group(1)}{m.group(2)}[{m.group(3)}]", path)
+
+
+def _get_reduced_stat(stats: dict, metric_key: str, reducer: str = "median"):
+    nested = stats.get(metric_key)
+    if isinstance(nested, dict) and reducer in nested:
+        return nested.get(reducer)
+    return stats.get(f"{metric_key}.{reducer}")
 
 
 def main():
@@ -90,11 +103,13 @@ def main():
     for layer in act_report.get("per_layer", []):
         name = layer.get("name", "")
         stats = layer.get("statistics", {})
-        entropy = stats.get("histogram_entropy.median", None)
+        entropy = _get_reduced_stat(stats, "compute_lda_matrix.histogram_entropy", "median")
+        if entropy is None:
+            entropy = _get_reduced_stat(stats, "histogram_entropy", "median")
         if entropy is not None:
             try:
                 ent = float(entropy)
-                layer_entropy[name] = ent
+                layer_entropy[_to_bracket_module_path(name)] = ent
                 entropy_values.append(ent)
             except Exception:
                 pass
@@ -145,7 +160,17 @@ def main():
     ])
 
     # Build overrides from entropy analysis
-    overrides = fact_cfg.get("overrides", [])
+    base_overrides = list(fact_cfg.get("overrides", []) or [])
+    computed_overrides = [
+        {
+            "pattern": module_path,
+            "func_name": "svd",
+            "rank": int(rank),
+            "granularity": "matrix",
+        }
+        for module_path, rank in layer_ranks.items()
+    ]
+    overrides = computed_overrides + base_overrides
 
     svd_backend = cfg.get("compression", {}).get("svd", {}).get("backend", "cola")
     svd_backend_config = cfg.get("compression", {}).get("svd", {}).get("cola", {"algorithm": "lanczos"})
@@ -197,6 +222,7 @@ def main():
         "compression_ratio": ratio,
         "layer_entropy": layer_entropy,
         "layer_ranks": layer_ranks,
+        "applied_overrides": len(overrides),
         "entropy_thresholds": {"low": low_threshold, "high": high_threshold},
         "rank_distribution": rank_distribution,
         "analysis_time_sec": t_analysis,

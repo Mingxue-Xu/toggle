@@ -239,35 +239,6 @@ class SVD(LowRankCompressionPlugin):
         else:
             return reconstructed_2d
     
-    def estimate_compression_ratio(self, tensor: torch.Tensor) -> float:
-        """
-        Estimate compression ratio without performing actual compression
-        
-        Args:
-            tensor: Input tensor
-            
-        Returns:
-            float: Estimated compression ratio
-        """
-        if len(tensor.shape) > 2:
-            tensor_2d_shape = (-1, tensor.shape[-1])
-            m, n = tensor.view(tensor_2d_shape[0], tensor_2d_shape[1]).shape
-        else:
-            m, n = tensor.shape
-        
-        # Estimate truncation rank
-        if self.rank is not None:
-            k = min(self.rank, min(m, n))
-        else:
-            # Conservative estimate for energy preservation
-            k = min(int(0.8 * min(m, n)), min(m, n)) if self.preserve_energy else min(m, n)
-        
-        # Calculate theoretical compression ratio
-        original_size = m * n
-        compressed_size = k * (m + n + 1)  # U_k: m*k, S_k: k, Vt_k: k*n
-        
-        return original_size / compressed_size if compressed_size > 0 else 1.0
-    
     def get_compression_info(self) -> Dict[str, Any]:
         """Get compression configuration information"""
         return {

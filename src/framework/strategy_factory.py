@@ -210,7 +210,7 @@ class WeightMetricsAnalysisStrategy(StrategyBase):
             name_prefix=ext_import.get("name_prefix"),
         )
         if not backend.provenance.get("found", False):
-            backend = BasicMetricsBackend()
+            backend = BasicMetricsBackend(include_advanced=True)
 
         requested = metrics_cfg.get("names", []) if isinstance(metrics_cfg, dict) else []
         if requested == "all":
@@ -253,7 +253,7 @@ class ActivationMetricsAnalysisStrategy(StrategyBase):
             name_prefix=ext_import.get("name_prefix"),
         )
         if not backend.provenance.get("found", False):
-            backend = BasicMetricsBackend()
+            backend = BasicMetricsBackend(include_advanced=False)
 
         analyzer = ActivationMetricsAnalyzer()
         analyzer.start_capture(backend=backend, compute_cfg=compute_cfg, reductions_cfg=aggregation_cfg)

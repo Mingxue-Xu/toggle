@@ -132,7 +132,7 @@ class WeightMetricsPlugin(Plugin):
         )
         provenance = backend.provenance
         if not provenance.get("found", False):
-            backend = BasicMetricsBackend()
+            backend = BasicMetricsBackend(include_advanced=True)
 
         # Determine metrics list
         requested = metrics_cfg.get("names", []) if isinstance(metrics_cfg, dict) else []

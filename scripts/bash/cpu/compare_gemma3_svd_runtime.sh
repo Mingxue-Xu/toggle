@@ -31,8 +31,8 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 COMMANDS=(
  "scripts/examples/cpu/svd_gemma3.py --cola no"
   "scripts/examples/cpu/svd_gemma3.py --cola yes"
-  "scripts/examples/cpu/profile_compressed.py --config config/svd_gemma3.yaml --cola no"
-  "scripts/examples/cpu/profile_compressed.py --config config/svd_gemma3.yaml --cola yes"
+  "scripts/examples/cpu/profile_compressed.py --config config/profiles/profile/svd_gemma3.yaml --cola no"
+  "scripts/examples/cpu/profile_compressed.py --config config/profiles/profile/svd_gemma3.yaml --cola yes"
 )
 NAMES=(
   "svd_gemma3_no_cola"

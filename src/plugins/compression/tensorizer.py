@@ -93,18 +93,6 @@ class Tensorizer(LowRankCompressionPlugin):
         # Reshape back to original shape
         return compressed.factors.view(compressed.original_shape)
     
-    def estimate_compression_ratio(self, tensor: torch.Tensor, **params) -> float:
-        """
-        Estimate compression ratio (always 1.0 for tensorizer as it's just reshaping)
-        
-        Args:
-            tensor: Input tensor
-            **params: Additional parameters
-            
-        Returns:
-            Always returns 1.0 (no compression)
-        """
-        return 1.0
     
     def validate_tensor_compatibility(self, tensor: torch.Tensor) -> bool:
         """

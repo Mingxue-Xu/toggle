@@ -120,7 +120,7 @@ def _select_save_dir(cfg: dict, workspace: Path, compressed_subdir: str) -> Path
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate a compressed SVD model (CoLA or non-CoLA).")
-    parser.add_argument("--config", default="config/svd_gemma3.yaml", help="Path to configuration YAML.")
+    parser.add_argument("--config", default="config/profiles/profile/svd_gemma3.yaml", help="Path to configuration YAML.")
     parser.add_argument(
         "--cola",
         choices=["yes", "no"],

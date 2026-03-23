@@ -121,24 +121,6 @@ class TensorTrain(LowRankCompressionPlugin):
         
         return self._reconstruct_from_factors(compressed.factors)
     
-    def estimate_compression_ratio(self, tensor: torch.Tensor, **params) -> float:
-        """
-        Estimate compression ratio without performing actual compression
-        
-        Args:
-            tensor: Input tensor
-            **params: Additional parameters (ignored)
-            
-        Returns:
-            Estimated compression ratio
-        """
-        original_size = tensor.numel()
-        
-        # Estimate factor sizes for given tensor shape and ranks
-        estimated_compressed_size = self._estimate_factor_sizes(tensor.shape, self.tensor_ranks)
-        
-        return original_size / estimated_compressed_size if estimated_compressed_size > 0 else 0.0
-    
     def validate_tensor_compatibility(self, tensor: torch.Tensor) -> bool:
         """
         Check if tensor is compatible with tensor-train decomposition
@@ -172,35 +154,26 @@ class TensorTrain(LowRankCompressionPlugin):
         
         return True
     
-    def _tensor_train_decomposition(self, tensor: torch.Tensor, ranks: List[int]) -> List[torch.Tensor]:
+    def _tensor_train_decomposition(self, tensor: torch.Tensor, ranks: List[int]):
         """
         Internal tensor-train decomposition implementation
-        
+
         Migrated from original tensor_train_decomposition function
-        
+
         Args:
             tensor: Input tensor
             ranks: TT-ranks
-            
+
         Returns:
-            List of tensor-train factors
+            TTTensor object with factors
         """
         # Validate TT-ranks
         validated_ranks = tl.validate_tt_rank(tensor.shape, ranks)
-        
-        # Perform tensor-train decomposition
+
+        # Perform tensor-train decomposition — returns a TTTensor
         tt_tensor_obj = tl.decomposition.tensor_train(tensor, rank=validated_ranks)
-        
-        # Extract factors
-        if hasattr(tt_tensor_obj, 'factors'):
-            factors = tt_tensor_obj.factors
-        elif isinstance(tt_tensor_obj, list):
-            factors = tt_tensor_obj
-        else:
-            # Handle different tensorly versions
-            factors = [tt_tensor_obj[i] for i in range(len(tt_tensor_obj))]
-        
-        return factors
+
+        return tt_tensor_obj
     
     def _reconstruct_from_factors(self, factors: List[torch.Tensor]) -> torch.Tensor:
         """

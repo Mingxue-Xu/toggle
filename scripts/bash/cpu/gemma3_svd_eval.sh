@@ -7,7 +7,7 @@ ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 # ROOT="/home/mercy/cloud/act-remote-eval"
 
 CUDA_VISIBLE_DEVICES="" python "${ROOT}/scripts/examples/cpu/loop_svd_gemma3.py" \
-  --config "${ROOT}/config/svd_gemma3.yaml" \
+  --config "${ROOT}/config/profiles/eval/svd_gemma3.yaml" \
   --input-csv "${ROOT}/assets/gemma3_ranks.csv" \
   --out-csv "${ROOT}/logs/gemma3_loop_results.csv" \
   "$@"

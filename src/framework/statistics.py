@@ -10,7 +10,7 @@ import json
 import csv
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -279,7 +279,7 @@ class WeightsStatisticsManager(StatisticsManager):
             "by_module_type": self.aggregate_by_module_type(per_layer, reductions),
             "global": self.aggregate_global(per_layer, reductions),
             "provenance": {
-                "created_at": datetime.utcnow().isoformat() + "Z",
+                "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "seed": compute_cfg.get("seed"),
                 "framework_versions": {},
                 "external_metrics": timings.get("external_metrics", {}),
@@ -557,7 +557,7 @@ class ActivationsStatisticsManager(StatisticsManager):
             "by_module_type": self.aggregate_by_module_type(raw_results, reductions),
             "global": self.aggregate_global(raw_results, reductions),
             "provenance": {
-                "created_at": datetime.utcnow().isoformat() + "Z",
+                "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "seed": compute_cfg.get("seed"),
                 "framework_versions": {},
                 "external_metrics": timings.get("external_metrics", {}),

@@ -411,7 +411,43 @@ class ActivationMetricsPlugin(Plugin):
             category="analysis",
         )
 
-    def _drive_evaluation(self, model: torch.nn.Module, tokenizer, lm_eval_cfg: Dict[str, Any]) -> None:
+    def _prepare_batch_inputs(
+        self,
+        batch: Any,
+        device: torch.device,
+    ) -> Any:
+        """Move a batch to device while preserving common structures."""
+        if isinstance(batch, dict):
+            return {
+                key: value.to(device) if isinstance(value, torch.Tensor) else value
+                for key, value in batch.items()
+            }
+        if isinstance(batch, (list, tuple)):
+            prepared = [
+                value.to(device) if isinstance(value, torch.Tensor) else value
+                for value in batch
+            ]
+            if len(prepared) <= 3 and all(
+                value is None or isinstance(value, torch.Tensor) for value in prepared
+            ):
+                keys = ("input_ids", "attention_mask", "labels")
+                return {
+                    key: value
+                    for key, value in zip(keys, prepared)
+                    if value is not None
+                }
+            return prepared
+        if isinstance(batch, torch.Tensor):
+            return batch.to(device)
+        return batch
+
+    def _drive_evaluation(
+        self,
+        model: torch.nn.Module,
+        tokenizer,
+        lm_eval_cfg: Dict[str, Any],
+        dataloader: Any = None,
+    ) -> None:
         """Drive forward passes to trigger hooks.
 
         Prefer LM Eval if available and configured; otherwise perform a minimal
@@ -433,6 +469,23 @@ class ActivationMetricsPlugin(Plugin):
             if hasattr(self, 'logger') and self.logger:
                 self.logger.info(f"Driving evaluation via LM Eval task='{task}', batch_size={batch_size}, limit={limit or 'None'}")
             evaluator.evaluate_task(model=model, tokenizer=tokenizer, task=task)
+            return
+
+        if dataloader is not None:
+            model.eval()
+            device = next(model.parameters()).device
+            max_batches = limit if limit > 0 else None
+            with torch.no_grad():
+                for batch_idx, batch in enumerate(dataloader):
+                    if max_batches is not None and batch_idx >= max_batches:
+                        break
+                    prepared = self._prepare_batch_inputs(batch, device)
+                    if isinstance(prepared, dict):
+                        _ = model(**prepared)
+                    elif isinstance(prepared, (list, tuple)):
+                        _ = model(*prepared)
+                    else:
+                        _ = model(prepared)
             return
 
         # Fallback: attempt a minimal dummy forward for models accepting a single tensor input
@@ -472,6 +525,7 @@ class ActivationMetricsPlugin(Plugin):
         compute_cfg = analysis_cfg.get("compute", {})
         output_cfg = analysis_cfg.get("output", {})
         lm_eval_cfg = config.get("lm_eval", {})
+        dataloader = kwargs.get("dataloader")
 
         # Resolve model/tokenizer
         model = kwargs.get("model")
@@ -492,7 +546,7 @@ class ActivationMetricsPlugin(Plugin):
             name_prefix=ext_import.get("name_prefix"),
         )
         provenance = ext_backend.provenance
-        basic_backend = BasicMetricsBackend()
+        basic_backend = BasicMetricsBackend(include_advanced=False)
 
         # Determine metrics list
         requested = metrics_cfg.get("names", []) if isinstance(metrics_cfg, dict) else []
@@ -528,7 +582,7 @@ class ActivationMetricsPlugin(Plugin):
             self.logger.warning("No modules selected for activation capture. Check selection.include_names/module_types.")
         try:
             # Drive forward passes
-            self._drive_evaluation(model, tokenizer, lm_eval_cfg)
+            self._drive_evaluation(model, tokenizer, lm_eval_cfg, dataloader=dataloader)
         finally:
             hooks.remove_all()
 

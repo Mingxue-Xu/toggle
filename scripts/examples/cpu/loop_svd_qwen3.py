@@ -41,7 +41,7 @@ from src.framework.layers import FactorLinear
 from src.plugins.compression.consolidator import ModelConsolidator
 from toggle.src.plugins.evaluation.lm_eval import LMHarness
 
-DEFAULT_CONFIG = "config/svd_qwen3.yaml"
+DEFAULT_CONFIG = "config/profiles/eval/svd_qwen3.yaml"
 DEFAULT_INPUT_CSV = "assets/qwen_8b_svd_ranks.csv"
 RESULT_KEYS = [
     "tasks",

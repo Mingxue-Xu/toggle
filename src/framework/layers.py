@@ -6,21 +6,19 @@ Provides FactorLayer, FactorEmbedding, FactorLinear, and Factor classes for tens
 Tucker, and CP decompositions.
 """
 
-import numpy as np
 import torch
 import math
 from torch import Tensor
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
-from torch.nn import Module, ModuleDict, Embedding, init, Linear, ModuleList
-from typing import Dict, Union, List, Tuple, Optional, OrderedDict, Callable, AnyStr
-from collections.abc import Mapping
+from torch.nn import Module, init, Linear, ModuleList
+from typing import Dict, Union, List, Tuple, Optional
 import tensorly as tl
 from tensorly._factorized_tensor import FactorizedTensor
 from tensorly.tt_tensor import TTTensor
 from tensorly.cp_tensor import CPTensor
 from tensorly.tucker_tensor import TuckerTensor
-from tensorly.decomposition import tucker, tensor_train
+
 from ..plugins.compression.svd import CompressedSVDTensor
 
 
@@ -234,7 +232,7 @@ class FactorLayer(Module):
     def _contract_tensor_train(self, factors: ModuleList) -> Tensor:
         """Contract tensor train factors"""
 
-        factor_weights = [factor.weight for factor in self.factors]
+        factor_weights = [factor.weight for factor in factors]
         if len(factor_weights) == 0:
             raise ValueError("No factors to contract")
         
@@ -260,14 +258,13 @@ class FactorLayer(Module):
         """Contract CP decomposition factors"""
         if len(factors) < 2:
             raise ValueError("CP decomposition needs at least weights and one factor")
-        
+
         # First factor contains weights, rest are factor matrices
         weights = factors[0].weight
         factor_matrices = [factors[i].weight for i in range(1, len(factors))]
-        
-        # Reconstruct tensor using CP format
+
         result = torch.flatten(tl.cp_to_tensor((weights, factor_matrices)))
-        
+
         return result
     
     def _contract_svd(self, factors: ModuleList) -> Tensor:

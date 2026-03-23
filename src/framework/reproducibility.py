@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import random
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -148,7 +148,7 @@ def get_reproducibility_info() -> Dict[str, Any]:
     info = {
         "seed": _GLOBAL_SEED,
         "seed_set": _SEED_SET,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "torch_version": torch.__version__,
         "numpy_version": np.__version__,
         "cuda_available": torch.cuda.is_available(),
