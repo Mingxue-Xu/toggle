@@ -15,11 +15,11 @@ LLM compression framework focusing on low-rank factorization (matrices and tenso
 | Category | Options |
 |----------|---------|
 | [Compression Algorithms](docs/compression_algorithm.md) | SVD, Tucker, CP (CANDECOMP/PARAFAC), Tensor Train, weight pruning (layer removal) |
-| **Rank Selection Criteria** | Activation-informed algorithms like [ASVD](https://github.com/hahnyuan/ASVD4LLM) and [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM), the metrics included in [information_flow](https://github.com/OFSkean/information_flow), entropies, Fisher Information, stable rank |
+| [Rank Selection Criteria](docs/rank-selection.md) | Activation-informed algorithms like [ASVD](https://github.com/hahnyuan/ASVD4LLM) and [SVD-LLM](https://github.com/AIoT-MLSys-Lab/SVD-LLM), entropies, Fisher Information, stable rank, and metrics included in [information_flow](https://github.com/OFSkean/information_flow) (external download is required) |
 | [Algebra Backends](docs/algebra_backends.md) | [CoLA](https://github.com/wilson-labs/cola) (Lanczos, LOBPCG), PyTorch, [TensorLy](https://github.com/tensorly/tensorly) |
 | [Target Layers](docs/layer_types.md) | MLP, attention layers (Q/K/V/O), embedding layers |
-| **Evaluation** | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, self-defined language task evaluation metrics |
-| **Profiling**| Memory (RSS, VMS, GPU allocated/reserved, peak), latency (per-phase), subprocess isolation |
+| [Evaluation](docs/evaluation.md) | [lm-eval-harness](https://github.com/EleutherAI/lm-evaluation-harness) integration, self-defined language task evaluation metrics |
+| [Profiling](docs/profiling.md)| Memory (RSS, VMS, GPU allocated/reserved, peak), latency (per-phase), subprocess isolation |
 | [Logging](docs/logging.md) | CSV logging for experiments, including models, evaluations, and compression runs, with cross-experiment comparison |
 
 ## Quick Start

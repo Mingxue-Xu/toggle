@@ -172,7 +172,7 @@ class CSVLogger:
         End current experiment session
         
         Args:
-            status: Final experiment status (completed, failed, cancelled)
+            status: Final experiment status (completed, failed, cancelled, skipped)
             error_message: Optional error message if status is failed
         """
         if not self.current_session:
@@ -196,7 +196,8 @@ class CSVLogger:
         Args:
             model_name: Model identifier  
             model_type: "baseline" or "compressed"
-            model_info: Dictionary with model analysis results
+            model_info: Dictionary with model analysis results; num_parameters and
+                size_mb are extracted when present and otherwise default to 0 / 0.0
             loading_time: Time taken to load model (seconds)
             device: Computation device
             precision: Model precision (float32, float16, etc.)
@@ -477,20 +478,26 @@ class ResultComparator:
         }
         
         # Get compression ratio
-        if compression_results:
-            analysis['compression_ratio'] = compression_results[0].get('compression_ratio', 1.0)
+        for record in compression_results:
+            ratio = self._coerce_float(record.get('compression_ratio'))
+            if ratio is not None:
+                analysis['compression_ratio'] = ratio
+                break
         
         # Calculate performance retention (baseline vs compressed)
         baseline_results = {}
         compressed_results = {}
         
         for result in eval_results:
+            metric_value = self._coerce_float(result.get('metric_value'))
+            if metric_value is None:
+                continue
             if result['model_type'] == 'baseline':
                 key = f"{result['task_name']}_{result['metric_name']}"
-                baseline_results[key] = float(result['metric_value'])
+                baseline_results[key] = metric_value
             elif result['model_type'] == 'compressed':
                 key = f"{result['task_name']}_{result['metric_name']}"
-                compressed_results[key] = float(result['metric_value'])
+                compressed_results[key] = metric_value
         
         for key in baseline_results:
             if key in compressed_results:
@@ -504,6 +511,20 @@ class ResultComparator:
             analysis['efficiency_score'] = analysis['compression_ratio'] * avg_retention
         
         return analysis
+
+    @staticmethod
+    def _coerce_float(value: Any) -> Optional[float]:
+        """Best-effort float parsing for CSV-loaded scalar values."""
+        if isinstance(value, bool) or value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.strip())
+            except ValueError:
+                return None
+        return None
     
     def _load_evaluation_results(self, experiment_id: str) -> List[Dict[str, Any]]:
         """Load evaluation results for an experiment"""

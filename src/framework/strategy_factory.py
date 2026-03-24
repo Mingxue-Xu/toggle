@@ -308,6 +308,7 @@ class UnifiedStrategyFactory:
             "closed_form_update": f"{package_root}.plugins.compression.svd_closed_form_update.ClosedFormUpdatePlugin",
             "ppl_sensitivity": f"{package_root}.plugins.compression.svd_ppl_sensitivity.PPLSensitivityPlugin",
             "binary_search_rank": f"{package_root}.plugins.compression.svd_binary_search_rank.BinarySearchRankPlugin",
+            "svdllm_pipeline": f"{package_root}.plugins.compression.svdllm_pipeline.SVDLLMPipelinePlugin",
         }
         
         self._evaluation_strategies = {

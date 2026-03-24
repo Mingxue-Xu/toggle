@@ -226,8 +226,7 @@ class TestSVDLLM:
 
     def test_svdllm_full_pipeline(self, model, tokenizer, tmp_path, csv_logger):
         """Full SVD-LLM: calibrate → whiten → SVD compress with whitening enabled."""
-        from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
-        from src.plugins.compression.svd_data_whitening import DataWhiteningPlugin
+        from src.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -236,30 +235,26 @@ class TestSVDLLM:
         original_params = param_count(model)
         original_size = size_mb(model)
 
-        calib = CalibrationCollectorPlugin(n_samples=3, name="calibration")
-        calib.initialize(ctx)
-        calib.execute(dataloader=_make_calibration_loader(model, tokenizer))
-
-        whitening = DataWhiteningPlugin(regularization=1e-4, name="whitening")
-        whitening.initialize(ctx)
-        whitening.execute()
-
         targets = ["model.layers[0].mlp.down_proj"]
+        dataloader = _make_calibration_loader(model, tokenizer)
         t0 = time.time()
-        consolidator = ModelConsolidator(
-            compression_method="svd",
+        pipeline = SVDLLMPipelinePlugin(
             target_modules=targets,
             rank=32,
+            regularization=1e-4,
             svd_backend="torch",
-            use_data_whitening=True,
+            use_closed_form_update=True,
+            name="svdllm_pipeline",
         )
-        consolidator.initialize(ctx)
-        result = consolidator.compress_model_with_surgery(model)
+        pipeline.initialize(ctx)
+        result = pipeline.execute(model=model, dataloader=dataloader)
         compression_time = time.time() - t0
 
         compressed_size = size_mb(model)
 
         assert param_count(model) < original_params
+        assert result["failures"] == {}
+        assert result["layers_processed"] == 1
 
         csv_logger.log_compression_results(
             "svd+whitening",

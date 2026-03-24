@@ -4,6 +4,7 @@ ASVD Binary Search Rank Allocation Plugin.
 Finds optimal per-layer ranks via binary search to meet target PPL or parameter ratio.
 """
 
+import math
 from typing import Any, Dict, List, Optional
 import torch
 import torch.nn as nn
@@ -110,14 +111,24 @@ class BinarySearchRankPlugin(Plugin):
 
         total_params = sum(info["params"] for info in layer_info.values())
 
-        # Get sensitivity scores
-        sensitivity_scores = self._get_sensitivity_scores(layer_info)
+        ppl_sensitivity_map = self._get_ppl_sensitivity_map(layer_info)
 
-        # Allocate ranks based on target mode
-        if self.target_mode == "param_ratio":
-            ranks = self._allocate_by_param_ratio(layer_info, sensitivity_scores, total_params)
+        # Allocate ranks based on target mode and sensitivity source
+        if self.sensitivity_source == "ppl" and ppl_sensitivity_map:
+            if self.target_mode == "param_ratio":
+                ranks = self._allocate_by_param_ratio_from_ppl_map(
+                    layer_info,
+                    ppl_sensitivity_map,
+                    total_params,
+                )
+            else:
+                ranks = self._allocate_by_ppl_from_ppl_map(layer_info, ppl_sensitivity_map)
         else:
-            ranks = self._allocate_by_ppl(layer_info, sensitivity_scores)
+            sensitivity_scores = self._get_sensitivity_scores(layer_info)
+            if self.target_mode == "param_ratio":
+                ranks = self._allocate_by_param_ratio(layer_info, sensitivity_scores, total_params)
+            else:
+                ranks = self._allocate_by_ppl(layer_info, sensitivity_scores)
 
         # Store in StateManager
         if self.state_manager:
@@ -139,6 +150,41 @@ class BinarySearchRankPlugin(Plugin):
             "compression_ratio": total_params / max(1, total_compressed_params),
         }
 
+    def _get_ppl_sensitivity_map(self, layer_info: Dict[str, Dict[str, int]]) -> Dict[str, Dict[float, float]]:
+        """
+        Read the full per-layer PPL sensitivity surface from state.
+
+        This preserves the layer/ratio candidate structure needed for a
+        closer-to-upstream binary search instead of collapsing everything
+        to a single scalar sensitivity score.
+        """
+        if not self.state_manager:
+            return {}
+
+        sensitivity_map: Dict[str, Dict[float, float]] = {}
+        for name in layer_info:
+            raw_map = self.state_manager.state.get(f"svd.sensitivity.ppl.{name}")
+            if not isinstance(raw_map, dict):
+                continue
+
+            normalized: Dict[float, float] = {}
+            for ratio, score in raw_map.items():
+                try:
+                    ratio_f = float(ratio)
+                    score_f = float(score)
+                except (TypeError, ValueError):
+                    continue
+
+                if ratio_f <= 0.0 or math.isnan(ratio_f) or math.isnan(score_f):
+                    continue
+
+                normalized[ratio_f] = score_f
+
+            if normalized:
+                sensitivity_map[name] = dict(sorted(normalized.items()))
+
+        return sensitivity_map
+
     def _get_sensitivity_scores(self, layer_info: Dict) -> Dict[str, float]:
         """
         Get sensitivity scores from StateManager or compute stable rank.
@@ -151,23 +197,130 @@ class BinarySearchRankPlugin(Plugin):
         """
         scores = {}
 
-        if self.sensitivity_source == "ppl" and self.state_manager:
-            # Use PPL sensitivity if available
-            for name in layer_info:
-                ppl_sens = self.state_manager.state.get(f"svd.sensitivity.ppl.{name}")
-                if ppl_sens:
-                    # Use sensitivity at 50% compression as proxy
-                    scores[name] = ppl_sens.get(0.5, 1.0)
-                else:
-                    scores[name] = 1.0
-        else:
-            # Use stable rank heuristic
-            for name in layer_info:
-                m, n = layer_info[name]["m"], layer_info[name]["n"]
-                # Stable rank approximation: use 50% of min dimension
-                scores[name] = 0.5 * min(m, n)
+        # Use stable rank heuristic
+        for name in layer_info:
+            m, n = layer_info[name]["m"], layer_info[name]["n"]
+            # Stable rank approximation: use 50% of min dimension
+            scores[name] = 0.5 * min(m, n)
 
         return scores
+
+    def _rank_from_ratio(self, layer_dims: Dict[str, int], ratio: float) -> int:
+        """
+        Convert a probe ratio back into the rank convention used by Toggle's SVD plugin.
+        """
+        min_dim = min(layer_dims["m"], layer_dims["n"])
+        raw_rank = int(ratio * min_dim)
+        return min(min_dim, max(self.min_rank, raw_rank))
+
+    def _compressed_param_count(self, layer_dims: Dict[str, int], rank: int) -> int:
+        return rank * (layer_dims["m"] + layer_dims["n"] + 1)
+
+    def _build_ppl_candidate_list(
+        self,
+        sensitivity_map: Dict[str, Dict[float, float]],
+    ) -> List[tuple[str, float, float]]:
+        def sort_score(score: float) -> float:
+            if math.isinf(score):
+                return float("-inf") if score > 0 else float("inf")
+            return -score
+
+        candidates: List[tuple[str, float, float]] = []
+        for layer_name, ratio_map in sensitivity_map.items():
+            for ratio, score in ratio_map.items():
+                candidates.append((layer_name, ratio, score))
+
+        candidates.sort(
+            key=lambda item: (
+                sort_score(item[2]),
+                item[1],
+                item[0],
+            )
+        )
+        return candidates
+
+    def _ranks_from_candidate_threshold(
+        self,
+        layer_info: Dict[str, Dict[str, int]],
+        candidates: List[tuple[str, float, float]],
+        start_idx: int,
+    ) -> Dict[str, int]:
+        """
+        Apply the upstream-style candidate-threshold idea:
+        tuples before the threshold are treated as too sensitive to compress.
+        """
+        selected_ratios = {name: 1.0 for name in layer_info}
+        for layer_name, ratio, _score in candidates[start_idx:]:
+            if layer_name in selected_ratios:
+                selected_ratios[layer_name] = min(selected_ratios[layer_name], ratio)
+
+        return {
+            name: self._rank_from_ratio(layer_info[name], selected_ratios[name])
+            for name in layer_info
+        }
+
+    def _allocate_by_param_ratio_from_ppl_map(
+        self,
+        layer_info: Dict[str, Dict[str, int]],
+        sensitivity_map: Dict[str, Dict[float, float]],
+        total_params: int,
+    ) -> Dict[str, int]:
+        """
+        Allocate ranks from the full per-layer PPL surface using a global threshold
+        over (layer, ratio, score) tuples, which is closer to the upstream search.
+        """
+        candidates = self._build_ppl_candidate_list(sensitivity_map)
+        if not candidates:
+            return self._allocate_by_param_ratio(
+                layer_info,
+                self._get_sensitivity_scores(layer_info),
+                total_params,
+            )
+
+        target_params = self.param_ratio_target * total_params
+        best_idx = 0
+        lo = 0
+        hi = len(candidates) - 1
+
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            ranks = self._ranks_from_candidate_threshold(layer_info, candidates, mid)
+            compressed_params = sum(
+                self._compressed_param_count(layer_info[name], rank)
+                for name, rank in ranks.items()
+            )
+
+            if compressed_params <= target_params:
+                best_idx = mid
+                lo = mid + 1
+            else:
+                hi = mid - 1
+
+        return self._ranks_from_candidate_threshold(layer_info, candidates, best_idx)
+
+    def _allocate_by_ppl_from_ppl_map(
+        self,
+        layer_info: Dict[str, Dict[str, int]],
+        sensitivity_map: Dict[str, Dict[float, float]],
+    ) -> Dict[str, int]:
+        """
+        Choose the most compressed ratio per layer whose measured PPL delta
+        remains below the requested threshold.
+        """
+        if self.ppl_target is None:
+            raise ValueError("ppl_target must be set when target_mode='ppl'")
+
+        ranks: Dict[str, int] = {}
+        for name, dims in layer_info.items():
+            ratio_map = sensitivity_map.get(name) or {}
+            chosen_ratio = 1.0
+            for ratio, score in sorted(ratio_map.items(), key=lambda item: item[0]):
+                if score < self.ppl_target:
+                    chosen_ratio = ratio
+                    break
+            ranks[name] = self._rank_from_ratio(dims, chosen_ratio)
+
+        return ranks
 
     def _allocate_by_param_ratio(
         self,

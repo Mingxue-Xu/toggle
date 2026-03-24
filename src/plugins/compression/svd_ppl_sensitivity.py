@@ -40,6 +40,9 @@ class PPLSensitivityPlugin(Plugin):
         self,
         param_ratios: Optional[List[float]] = None,
         cache_results: bool = True,
+        use_activation_scaling: bool = False,
+        svd_backend: str = "torch",
+        svd_backend_config: Optional[Dict[str, Any]] = None,
         **kwargs
     ):
         """
@@ -48,10 +51,17 @@ class PPLSensitivityPlugin(Plugin):
         Args:
             param_ratios: List of compression ratios to evaluate (0.0-1.0)
             cache_results: Whether to cache results in StateManager
+            use_activation_scaling: Whether to use the same activation-aware
+                SVD transform as final compression during temporary probes
+            svd_backend: SVD backend used for temporary probes
+            svd_backend_config: Optional backend configuration for probes
         """
         super().__init__(**kwargs)
         self.param_ratios = param_ratios or [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         self.cache_results = cache_results
+        self.use_activation_scaling = use_activation_scaling
+        self.svd_backend = svd_backend
+        self.svd_backend_config = dict(svd_backend_config or {})
 
     def get_metadata(self) -> PluginMetadata:
         return PluginMetadata(
@@ -87,7 +97,13 @@ class PPLSensitivityPlugin(Plugin):
         if eval_dataloader is None:
             raise ValueError("PPLSensitivityPlugin requires an eval_dataloader")
 
-        self.emit_event("ppl_sensitivity.started", {"ratios": self.param_ratios})
+        self.emit_event(
+            "ppl_sensitivity.started",
+            {
+                "ratios": self.param_ratios,
+                "use_activation_scaling": self.use_activation_scaling,
+            },
+        )
 
         # Get baseline PPL
         baseline_ppl = self._compute_ppl(model, tokenizer, eval_dataloader)
@@ -118,8 +134,11 @@ class PPLSensitivityPlugin(Plugin):
 
                 # Apply SVD compression temporarily
                 try:
-                    U, S, Vt = torch.linalg.svd(original_weight.float(), full_matrices=False)
-                    compressed = U[:, :k] @ torch.diag(S[:k]) @ Vt[:k, :]
+                    compressed = self._reconstruct_probe_weight(
+                        original_weight,
+                        rank=k,
+                        layer_name=name,
+                    )
 
                     module.weight.data = compressed.to(original_weight.dtype)
 
@@ -132,7 +151,7 @@ class PPLSensitivityPlugin(Plugin):
                     # Restore original weight
                     module.weight.data = original_weight
 
-                except RuntimeError as e:
+                except Exception as e:
                     self.logger.warning(f"SVD failed for {name} at ratio {ratio}: {e}")
                     module.weight.data = original_weight
                     layer_sensitivity[ratio] = float('inf')
@@ -156,6 +175,10 @@ class PPLSensitivityPlugin(Plugin):
         if self.state_manager:
             self.state_manager.state.set("svd.sensitivity.order", sorted_layers)
             self.state_manager.state.set("svd.sensitivity.baseline_ppl", baseline_ppl)
+            self.state_manager.state.set(
+                "svd.sensitivity.mode",
+                "act_aware_ppl" if self.use_activation_scaling else "plain_ppl",
+            )
 
         self.emit_event("ppl_sensitivity.completed", {"layers": total_layers})
 
@@ -163,7 +186,49 @@ class PPLSensitivityPlugin(Plugin):
             "baseline_ppl": baseline_ppl,
             "sensitivity_map": sensitivity_map,
             "sensitivity_order": sorted_layers,
+            "use_activation_scaling": self.use_activation_scaling,
         }
+
+    def _reconstruct_probe_weight(
+        self,
+        weight: torch.Tensor,
+        rank: int,
+        layer_name: Optional[str] = None,
+    ) -> torch.Tensor:
+        """
+        Reconstruct a dense probe weight using the same SVD path as final compression.
+
+        Using the production SVD strategy here keeps temporary sensitivity probes
+        aligned with the final decomposition logic, including activation-aware scaling.
+        """
+        from .svd import SVD
+
+        probe_svd = SVD(
+            rank=rank,
+            svd_backend=self.svd_backend,
+            svd_backend_config=self.svd_backend_config,
+            use_activation_scaling=self.use_activation_scaling,
+            name=f"{self.name}_probe_svd",
+        )
+        if self.context is not None:
+            probe_svd.initialize(self.context)
+
+        rank_key = f"svd.ranks.{layer_name}" if layer_name else None
+        stored_rank = None
+        had_stored_rank = False
+        if rank_key and self.state_manager is not None:
+            stored_rank = self.state_manager.state.get(rank_key)
+            had_stored_rank = stored_rank is not None
+            if had_stored_rank:
+                self.state_manager.state.delete(rank_key)
+
+        try:
+            compressed = probe_svd.compress(weight, layer_name=layer_name)
+        finally:
+            if rank_key and self.state_manager is not None and had_stored_rank:
+                self.state_manager.state.set(rank_key, stored_rank)
+
+        return probe_svd.decompress(compressed)
 
     def _compute_ppl(self, model: nn.Module, tokenizer: Any, dataloader: Any) -> float:
         """
@@ -177,14 +242,17 @@ class PPLSensitivityPlugin(Plugin):
         Returns:
             Perplexity value
         """
-        # Use strategy factory to get evaluation strategy if available
-        if self.strategy_factory:
+        # Use the shared evaluation strategy only when no explicit dataloader is provided.
+        if dataloader is None and self.strategy_factory:
             try:
                 eval_strategy = self.strategy_factory.get_evaluation_strategy(["perplexity"])
                 result = eval_strategy.execute(self.context, model=model, tokenizer=tokenizer)
                 return result.get("perplexity", {}).get("ppl", float("inf"))
             except Exception:
                 pass  # Fall back to manual computation
+
+        if dataloader is None:
+            return float("inf")
 
         # Fallback: simple cross-entropy loss computation
         model.eval()
@@ -232,6 +300,7 @@ class PPLSensitivityPlugin(Plugin):
         param_ratios: Optional[List[float]] = None,
         baseline_ppl: float = 0.0,
         eval_fn: Optional[Any] = None,
+        layer_name: Optional[str] = None,
     ) -> Dict[float, float]:
         """
         Compute sensitivity for a single layer at various compression ratios.
@@ -245,6 +314,7 @@ class PPLSensitivityPlugin(Plugin):
             baseline_ppl: Baseline perplexity for delta computation
             eval_fn: Optional function(model) -> ppl to compute perplexity
                      If not provided, uses a simple proxy based on weight reconstruction error
+            layer_name: Optional dotted layer name for state-backed transforms
 
         Returns:
             Dict mapping compression ratio to sensitivity score (PPL delta or error)
@@ -263,8 +333,11 @@ class PPLSensitivityPlugin(Plugin):
             k = max(1, int(ratio * min(m, n)))
 
             try:
-                U, S, Vt = torch.linalg.svd(original_weight.float(), full_matrices=False)
-                compressed = U[:, :k] @ torch.diag(S[:k]) @ Vt[:k, :]
+                compressed = self._reconstruct_probe_weight(
+                    original_weight,
+                    rank=k,
+                    layer_name=layer_name,
+                )
 
                 if eval_fn is not None:
                     # Use provided evaluation function
@@ -276,10 +349,10 @@ class PPLSensitivityPlugin(Plugin):
                         layer.weight.data = original_weight
                 else:
                     # Use reconstruction error as proxy for sensitivity
-                    error = torch.norm(original_weight.float() - compressed) / torch.norm(original_weight.float())
+                    error = torch.norm(original_weight.float() - compressed.float()) / torch.norm(original_weight.float())
                     sensitivity[ratio] = float(error.item())
 
-            except RuntimeError:
+            except Exception:
                 sensitivity[ratio] = float('inf')
 
         return sensitivity

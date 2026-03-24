@@ -143,25 +143,13 @@ class ClosedFormUpdatePlugin(Plugin):
             XVS = X @ VS                     # (batch x rank)
 
             try:
-                # Solve least-squares: find U_opt such that XVS @ U_opt.T ≈ Y
-                # Rearranging: (XVS)^T @ XVS @ U_opt.T = (XVS)^T @ Y
-                # Using torch.linalg.lstsq: solve XVS @ A = Y for A = U_opt.T
-
-                U_opt_T, residuals, rank_out, singular = torch.linalg.lstsq(XVS, Y)
+                # Solve XVS @ U^T ~= Y directly and keep the least-squares solution.
+                # The factors only need to reconstruct the refined matrix product;
+                # U does not need to remain orthonormal for Toggle's FactorLinear path.
+                lstsq_result = torch.linalg.lstsq(XVS, Y)
+                U_opt_T = lstsq_result.solution
                 U_refined = U_opt_T.T  # (out_features x rank)
-
-                # Ensure orthonormality via QR decomposition
-                U_refined, R = torch.linalg.qr(U_refined)
-
-                # Absorb R into S: new singular values
-                # R is (rank x rank), diagonal contains scale factors
-                S_refined = torch.abs(torch.diag(R)) * S.float()
-
-                # Handle sign: ensure S is positive
-                signs = torch.sign(torch.diag(R))
-                U_refined = U_refined * signs.view(1, -1)
-
-                return U_refined.to(dtype), S_refined.to(dtype), Vt
+                return U_refined.to(dtype), S.to(dtype), Vt
 
             except RuntimeError as e:
                 self.logger.warning(f"Closed-form update failed for {layer_name}: {e}")
@@ -208,21 +196,10 @@ class ClosedFormUpdatePlugin(Plugin):
             XVS = X @ VS                     # (batch x rank)
 
             try:
-                # Solve least-squares: find U_opt such that XVS @ U_opt.T ≈ Y
-                U_opt_T, residuals, rank_out, singular = torch.linalg.lstsq(XVS, Y)
+                lstsq_result = torch.linalg.lstsq(XVS, Y)
+                U_opt_T = lstsq_result.solution
                 U_refined = U_opt_T.T  # (out_features x rank)
-
-                # Ensure orthonormality via QR decomposition
-                U_refined, R = torch.linalg.qr(U_refined)
-
-                # Absorb R into S: new singular values
-                S_refined = torch.abs(torch.diag(R)) * S.float()
-
-                # Handle sign: ensure S is positive
-                signs = torch.sign(torch.diag(R))
-                U_refined = U_refined * signs.view(1, -1)
-
-                return U_refined.to(dtype), S_refined.to(dtype), Vt
+                return U_refined.to(dtype), S.to(dtype), Vt
 
             except RuntimeError:
                 return U, S, Vt

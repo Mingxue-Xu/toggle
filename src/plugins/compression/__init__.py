@@ -29,6 +29,7 @@ from .svd_data_whitening import DataWhiteningPlugin
 from .svd_closed_form_update import ClosedFormUpdatePlugin
 from .svd_ppl_sensitivity import PPLSensitivityPlugin
 from .svd_binary_search_rank import BinarySearchRankPlugin
+from .svdllm_pipeline import SVDLLMPipelinePlugin
 
 # Plugin registration function
 def register_compression_plugins(registry):
@@ -54,6 +55,7 @@ def register_compression_plugins(registry):
     registry.register(ClosedFormUpdatePlugin, "ClosedFormUpdate")
     registry.register(PPLSensitivityPlugin, "PPLSensitivity")
     registry.register(BinarySearchRankPlugin, "BinarySearchRank")
+    registry.register(SVDLLMPipelinePlugin, "SVDLLMPipeline")
 
 __all__ = [
     'CompressedTensor',
@@ -75,5 +77,6 @@ __all__ = [
     'ClosedFormUpdatePlugin',
     'PPLSensitivityPlugin',
     'BinarySearchRankPlugin',
+    'SVDLLMPipelinePlugin',
     'register_compression_plugins'
 ]

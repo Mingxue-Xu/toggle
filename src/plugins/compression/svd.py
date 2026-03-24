@@ -156,7 +156,10 @@ class SVD(LowRankCompressionPlugin):
             whitening_L_inv = self.state_manager.state.get(f"svd.whitening.L_inv.{layer_name}")
             if whitening_L is not None:
                 from .svd_data_whitening import DataWhiteningPlugin
-                weight = DataWhiteningPlugin.apply_whitening(weight, whitening_L.to(weight.device))
+                weight = DataWhiteningPlugin.apply_whitening(
+                    weight,
+                    whitening_L.to(device=weight.device, dtype=weight.dtype),
+                )
 
         # Get rank from StateManager if available (from BinarySearchRankPlugin)
         rank = self.rank
@@ -190,7 +193,10 @@ class SVD(LowRankCompressionPlugin):
         if whitening_L_inv is not None:
             from .svd_data_whitening import DataWhiteningPlugin
             # Vt_k is (k x n), need to transform back
-            Vt_k = DataWhiteningPlugin.inverse_whitening(Vt_k.T, whitening_L_inv.to(Vt_k.device)).T
+            Vt_k = DataWhiteningPlugin.inverse_whitening(
+                Vt_k.T,
+                whitening_L_inv.to(device=Vt_k.device, dtype=Vt_k.dtype),
+            ).T
 
         # Apply inverse scaling (if scaling was applied)
         if scaling_factor is not None:

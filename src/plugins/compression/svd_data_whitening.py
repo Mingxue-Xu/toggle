@@ -107,17 +107,28 @@ class DataWhiteningPlugin(Plugin):
                 continue
 
             try:
-                # Add regularization for numerical stability
-                n = xtx.shape[0]
-                xtx_reg = xtx.float() + self.regularization * torch.eye(
-                    n, dtype=xtx.dtype, device=xtx.device
-                )
+                # Compute the factorization in float64. Some under-conditioned
+                # X^T X matrices still fail after the eigenvalue shift in float32.
+                target_dtype = xtx.dtype if xtx.is_floating_point() else torch.float32
+                xtx_work = xtx.to(dtype=torch.float64)
+                n = xtx_work.shape[0]
+                eye = torch.eye(n, dtype=torch.float64, device=xtx_work.device)
+                xtx_reg = 0.5 * (xtx_work + xtx_work.T)
+                xtx_reg = xtx_reg + self.regularization * eye
 
                 # Compute Cholesky decomposition: X^T X = L @ L^T
-                L = torch.linalg.cholesky(xtx_reg)
+                try:
+                    L = torch.linalg.cholesky(xtx_reg)
+                except RuntimeError:
+                    min_eig = torch.min(torch.linalg.eigvalsh(xtx_reg)).item()
+                    shift = max(0.0, -min_eig) + self.regularization
+                    L = torch.linalg.cholesky(xtx_reg + shift * eye)
 
-                # Compute inverse for reconstruction
+                # Compute inverse for reconstruction, then cast back to the
+                # original floating dtype to avoid inflating persisted state.
                 L_inv = torch.linalg.inv(L)
+                L = L.to(dtype=target_dtype)
+                L_inv = L_inv.to(dtype=target_dtype)
 
                 # Store in StateManager
                 self.state_manager.state.set(f"svd.whitening.L.{layer_name}", L)

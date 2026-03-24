@@ -145,6 +145,11 @@ class ModelConsolidator(Plugin):
             for part in parts:
                 new_nodes = []
                 for obj, _unused, built in nodes:
+                    if part.isdigit():
+                        idx = int(part)
+                        if isinstance(obj, (torch.nn.ModuleList, list, tuple)) and 0 <= idx < len(obj):
+                            new_nodes.append((obj[idx], None, built + [part]))
+                        continue
                     attr, idx = self._split_attr_and_index(part)
                     if hasattr(obj, attr):
                         child = getattr(obj, attr)
@@ -202,6 +207,10 @@ class ModelConsolidator(Plugin):
                 seen.add(p)
                 result.append(p)
         return result
+
+    def _normalize_state_layer_name(self, layer_name: str) -> str:
+        """Convert bracket-index paths to the dotted format used by named_modules/state keys."""
+        return layer_name.replace("[", ".").replace("]", "")
     
     def do_execute(self, context: 'PipelineContext', **params):
         """
@@ -288,6 +297,13 @@ class ModelConsolidator(Plugin):
                 strategy_params["svd_backend"] = svd_backend
             if svd_backend_config:
                 strategy_params["svd_backend_config"] = svd_backend_config
+            for flag_name in (
+                "use_activation_scaling",
+                "use_data_whitening",
+                "use_closed_form_update",
+            ):
+                if flag_name in self.compression_params:
+                    strategy_params[flag_name] = self.compression_params[flag_name]
         
         # Select tensorly backend lazily (may import torch if backend='pytorch')
         set_tensorly_backend(self.backend)
@@ -297,6 +313,9 @@ class ModelConsolidator(Plugin):
             self.compression_method, 
             **strategy_params
         )
+
+        if hasattr(self.compression_strategy, "initialize") and self.context is not None:
+            self.compression_strategy.initialize(self.context)
         
         # Initialize tensorizer for preprocessing
         try:
@@ -601,7 +620,13 @@ class ModelConsolidator(Plugin):
             tensor_tensorized = parameter_tensor
         
         # Compress the (possibly tensorized) tensor using strategy directly
-        compressed_tensor = self.compression_strategy.compress(tensor_tensorized)
+        if self.compression_method == "svd":
+            compressed_tensor = self.compression_strategy.compress(
+                tensor_tensorized,
+                layer_name=self._normalize_state_layer_name(module_name),
+            )
+        else:
+            compressed_tensor = self.compression_strategy.compress(tensor_tensorized)
         
         # Calculate compressed size - handle different compression result types
         if hasattr(compressed_tensor, 'factors'):
@@ -655,6 +680,12 @@ class ModelConsolidator(Plugin):
             parts = module_name.split('.')
             current = model
             for part in parts:
+                if part.isdigit():
+                    idx = int(part)
+                    if isinstance(current, (torch.nn.ModuleList, list, tuple)) and 0 <= idx < len(current):
+                        current = current[idx]
+                        continue
+                    return None
                 attr, idx = self._split_attr_and_index(part)
                 if not hasattr(current, attr):
                     return None
@@ -700,6 +731,12 @@ class ModelConsolidator(Plugin):
         parts = layer_name.split('.')
         current = model
         for part in parts:
+            if part.isdigit():
+                idx = int(part)
+                if isinstance(current, (torch.nn.ModuleList, list, tuple)) and 0 <= idx < len(current):
+                    current = current[idx]
+                    continue
+                raise ValueError(f"Layer path '{layer_name}' index out of range for implicit list segment '{part}'")
             attr, idx = self._split_attr_and_index(part)
             if not hasattr(current, attr):
                 raise ValueError(f"Layer path '{layer_name}' not found in model (missing attr '{attr}')")
@@ -726,6 +763,9 @@ class ModelConsolidator(Plugin):
         # Navigate to parent of target layer
         parent = model
         for part in parts[:-1]:
+            if part.isdigit():
+                parent = parent[int(part)]
+                continue
             attr, idx = self._split_attr_and_index(part)
             child = getattr(parent, attr)
             if isinstance(idx, int):
@@ -733,6 +773,11 @@ class ModelConsolidator(Plugin):
             else:
                 parent = child
         # Replace the final layer
+        if parts[-1].isdigit():
+            idx = int(parts[-1])
+            parent[idx] = new_layer
+            self.logger.info(f"Replaced layer '{layer_name}' with {type(new_layer).__name__}")
+            return
         final_attr, final_idx = self._split_attr_and_index(parts[-1])
         if isinstance(final_idx, int):
             # Index replacement in ModuleList
