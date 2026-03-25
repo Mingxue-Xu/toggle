@@ -30,9 +30,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.framework.context import PipelineContext
-from src.framework.layers import FactorLinear, FactorEmbedding
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.layers import FactorLinear, FactorEmbedding
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 from tests.e2e.conftest import param_count, run_forward, random_input, size_mb, DEVICE, MODEL_ID
 
 

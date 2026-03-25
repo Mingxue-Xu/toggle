@@ -25,10 +25,10 @@ if str(ROOT) not in sys.path:
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.plugins.analysis.weight_metrics import WeightMetricsAnalyzer
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.plugins.analysis.weight_metrics import WeightMetricsAnalyzer
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 
 
 RECOMMENDED_MODELS = {
@@ -96,7 +96,7 @@ def main():
 
     # Step 1: Weight Metrics Analysis
     print("[h200_entropy_svd] Analyzing weight metrics...")
-    from src.plugins.analysis.metric_utils import BasicMetricsBackend
+    from goldcrest.plugins.analysis.metric_utils import BasicMetricsBackend
     analyzer = WeightMetricsAnalyzer(backend=BasicMetricsBackend(include_advanced=True))
     t0 = time.perf_counter()
     per_layer = analyzer.analyze_model(

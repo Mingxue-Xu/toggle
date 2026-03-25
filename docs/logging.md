@@ -1,11 +1,11 @@
 # CSV Logging Guide
 
-Source: `src/plugins/evaluation/csv_logger.py`
+Source: `goldcrest/plugins/evaluation/csv_logger.py`
 
 ## Setup
 
 ```python
-from src.plugins.evaluation.csv_logger import CSVLogger, ResultComparator
+from goldcrest.plugins.evaluation.csv_logger import CSVLogger, ResultComparator
 
 logger = CSVLogger(output_dir="./logs/csv")        # creates 4 CSV files
 comparator = ResultComparator(logger)               # cross-experiment analysis

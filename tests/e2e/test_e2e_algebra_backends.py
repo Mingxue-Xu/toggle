@@ -26,8 +26,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.framework.context import PipelineContext
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 from tests.e2e.conftest import param_count, run_forward, size_mb, DEVICE, MODEL_ID
 
 
@@ -428,7 +428,7 @@ class TestPyTorchBackend:
 
     def test_pytorch_backend_is_default(self, model, tokenizer, tmp_path, csv_logger):
         """When no svd_backend is specified, torch should be used."""
-        from src.plugins.compression.svd_backend import build_svd_backend, TorchSVDBackend
+        from goldcrest.plugins.compression.svd_backend import build_svd_backend, TorchSVDBackend
         backend = build_svd_backend("torch", {})
         assert isinstance(backend, TorchSVDBackend)
 
@@ -471,7 +471,7 @@ class TestTensorLyBackend:
     def test_tensorly_tucker_decomposition(self, model, tokenizer, tmp_path, csv_logger):
         """TensorLy should perform Tucker decomposition on real weight."""
         import tensorly as tl
-        from src.plugins.compression.tensorly_backend import set_tensorly_backend
+        from goldcrest.plugins.compression.tensorly_backend import set_tensorly_backend
         set_tensorly_backend("pytorch")
 
         weight = model.model.layers[0].mlp.gate_proj.weight.data.float()
@@ -503,7 +503,7 @@ class TestTensorLyBackend:
     def test_tensorly_cp_decomposition(self, model, tokenizer, tmp_path, csv_logger):
         """TensorLy should perform CP decomposition on real weight."""
         import tensorly as tl
-        from src.plugins.compression.tensorly_backend import set_tensorly_backend
+        from goldcrest.plugins.compression.tensorly_backend import set_tensorly_backend
         set_tensorly_backend("pytorch")
 
         weight = model.model.layers[0].self_attn.v_proj.weight.data.float()
@@ -533,7 +533,7 @@ class TestTensorLyBackend:
     def test_tensorly_tt_decomposition(self, model, tokenizer, tmp_path, csv_logger):
         """TensorLy should perform Tensor Train decomposition on reshaped weight."""
         import tensorly as tl
-        from src.plugins.compression.tensorly_backend import set_tensorly_backend
+        from goldcrest.plugins.compression.tensorly_backend import set_tensorly_backend
         set_tensorly_backend("pytorch")
 
         weight = model.model.layers[0].mlp.down_proj.weight.data.float()
@@ -573,7 +573,7 @@ class TestTensorLyBackend:
     def test_tensorly_backend_switch(self, model, tokenizer, tmp_path, csv_logger):
         """set_tensorly_backend('pytorch') should set TensorLy to use PyTorch."""
         import tensorly as tl
-        from src.plugins.compression.tensorly_backend import set_tensorly_backend
+        from goldcrest.plugins.compression.tensorly_backend import set_tensorly_backend
 
         t0 = time.time()
         set_tensorly_backend("pytorch")
@@ -594,7 +594,7 @@ class TestTensorLyBackend:
 
     def test_tensorly_cola_not_implemented(self, csv_logger):
         """CoLA backend for TensorLy should raise NotImplementedError."""
-        from src.plugins.compression.tensorly_backend import set_tensorly_backend
+        from goldcrest.plugins.compression.tensorly_backend import set_tensorly_backend
 
         t0 = time.time()
         with pytest.raises(NotImplementedError):

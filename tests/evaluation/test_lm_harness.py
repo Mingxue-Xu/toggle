@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from toggle.src.plugins.evaluation import lm_eval as lm_eval_module
+from goldcrest.plugins.evaluation import lm_eval as lm_eval_module
 
 
 class FakeTokenizer:

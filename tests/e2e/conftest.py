@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.plugins.evaluation.csv_logger import CSVLogger, ResultComparator
+from goldcrest.plugins.evaluation.csv_logger import CSVLogger, ResultComparator
 
 MODEL_ID = "google/gemma-3-270m-it"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -78,7 +78,7 @@ def tokenizer(model_and_tokenizer):
 @pytest.fixture()
 def pipeline_context(tmp_path, model_and_tokenizer):
     """Return a PipelineContext with model + tokenizer pre-loaded."""
-    from src.framework.context import PipelineContext
+    from goldcrest.framework.context import PipelineContext
     model, tokenizer = model_and_tokenizer
     ctx = PipelineContext(config={}, workspace_dir=tmp_path)
     ctx.state.model = model

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from toggle.src.plugins.compression import pruning as pruning_module
+from goldcrest.plugins.compression import pruning as pruning_module
 
 
 def test_load_pruning_config_rejects_missing_report_path(monkeypatch, tmp_path):

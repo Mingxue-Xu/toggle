@@ -22,9 +22,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.framework.context import PipelineContext
-from src.framework.eval_interface import ModelEvalInterface
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.eval_interface import ModelEvalInterface
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 from tests.e2e.conftest import param_count, run_forward, size_mb, DEVICE, MODEL_ID
 
 
@@ -76,7 +76,7 @@ class TestLMHarness:
         )
 
         # Evaluate with lm-eval-harness
-        from src.plugins.evaluation.lm_eval import LMHarness
+        from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
         evaluator = LMHarness(
             tasks=["arc_easy"],
@@ -111,7 +111,7 @@ class TestLMHarness:
         ctx.state.model = model
         ctx.state.tokenizer = tokenizer
 
-        from src.plugins.evaluation.lm_eval import LMHarness
+        from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
         evaluator = LMHarness(
             tasks=["arc_easy"],
@@ -171,7 +171,7 @@ class TestLMHarness:
             parameters={"target_modules": ["model.layers[0].mlp.gate_proj"], "rank": 32, "svd_backend": "torch"},
         )
 
-        from src.plugins.evaluation.lm_eval import LMHarness
+        from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
         evaluator = LMHarness(
             tasks=["arc_easy", "hellaswag"],
@@ -429,7 +429,7 @@ class TestSelfDefinedEval:
 
     def test_lm_evaluator_classification(self, model, tokenizer, tmp_path, csv_logger):
         """LMEvaluator with a synthetic classification task."""
-        from src.plugins.evaluation.lm_eval import LMEvaluator
+        from goldcrest.plugins.evaluation.lm_eval import LMEvaluator
 
         ctx = PipelineContext(
             config={

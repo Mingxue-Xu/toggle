@@ -1,6 +1,6 @@
 # Shared defaults for all pipelines
 pipeline:
-  name: toggle-compression
+  name: goldcrest-compression
   workspace: ./workspace
 
 model:

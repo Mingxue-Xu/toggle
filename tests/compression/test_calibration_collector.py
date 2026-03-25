@@ -4,8 +4,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from toggle.src.framework.context import PipelineContext
-from toggle.src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+from goldcrest.framework.context import PipelineContext
+from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
 
 
 class TwoInputModel(nn.Module):

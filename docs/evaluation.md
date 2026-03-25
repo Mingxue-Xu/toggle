@@ -1,7 +1,7 @@
-# Evaluation in the Toggle Compression Pipeline
+# Evaluation in the Goldcrest Compression Pipeline
 
 This document describes how to evaluate compressed (and baseline) models using
-Toggle's evaluation plugins. Two complementary approaches are covered:
+Goldcrest's evaluation plugins. Two complementary approaches are covered:
 
 1. **LMHarness** — EleutherAI `lm-eval-harness` integration for standard
    benchmark tasks (arc_easy, hellaswag, wikitext, etc.)
@@ -20,9 +20,9 @@ the `CSVLogger` for structured experiment tracking.
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.eval_interface import ModelEvalInterface
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.eval_interface import ModelEvalInterface
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 ```
 
 Load a model and set up the context:
@@ -79,7 +79,7 @@ before running the plugin.
 ### Single-Task Evaluation
 
 ```python
-from src.plugins.evaluation.lm_eval import LMHarness
+from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
 evaluator = LMHarness(
     tasks=["arc_easy"],
@@ -188,7 +188,7 @@ The curated built-in task list is:
 
 ## 2. Self-Defined Language Task Evaluation
 
-For evaluation without the external `lm_eval` dependency, Toggle provides two
+For evaluation without the external `lm_eval` dependency, Goldcrest provides two
 interfaces:
 
 - **`ModelEvalInterface`** — direct log-likelihood and rolling log-likelihood
@@ -202,7 +202,7 @@ interfaces:
 is the standard basis for perplexity measurement.
 
 ```python
-from src.framework.eval_interface import ModelEvalInterface
+from goldcrest.framework.eval_interface import ModelEvalInterface
 
 eval_interface = ModelEvalInterface(
     model=model,
@@ -310,7 +310,7 @@ current implementation it:
 It does not require the external `lm_eval` package.
 
 ```python
-from src.plugins.evaluation.lm_eval import LMEvaluator
+from goldcrest.plugins.evaluation.lm_eval import LMEvaluator
 
 ctx = PipelineContext(
     config={
@@ -433,7 +433,7 @@ each nested `task_results` mapping into one `EvaluationRecord` per metric.
 Example logging flow:
 
 ```python
-from src.plugins.evaluation.csv_logger import CSVLogger
+from goldcrest.plugins.evaluation.csv_logger import CSVLogger
 
 csv_logger = CSVLogger("workspace/evaluation_logs")
 csv_logger.start_experiment("evaluation_demo", config_file="inline")

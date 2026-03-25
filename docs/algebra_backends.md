@@ -50,7 +50,7 @@ consolidator = ModelConsolidator(
 Can also be used directly via `build_svd_backend` in `svd_backend.py`:
 
 ```python
-from src.plugins.compression.svd_backend import build_svd_backend, TorchSVDBackend
+from goldcrest.plugins.compression.svd_backend import build_svd_backend, TorchSVDBackend
 
 backend = build_svd_backend("torch", {})          # returns TorchSVDBackend
 U, S, Vh = backend.compute_svd(weight, k=16)      # truncated SVD
@@ -107,7 +107,7 @@ For direct TensorLy usage, you can set the backend explicitly:
 
 ```python
 # From tests/e2e/test_e2e_algebra_backends.py::TestTensorLyBackend
-from src.plugins.compression.tensorly_backend import set_tensorly_backend
+from goldcrest.plugins.compression.tensorly_backend import set_tensorly_backend
 set_tensorly_backend("pytorch")                   # "pytorch" or "torch" accepted
 ```
 

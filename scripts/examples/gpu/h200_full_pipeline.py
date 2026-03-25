@@ -45,15 +45,15 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.framework.memory_profiler import MemoryProfiler
-from src.plugins.analysis.activation_metrics import ActivationMetricsPlugin
-from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
-from src.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
-from src.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
-from src.plugins.compression.consolidator import ModelConsolidator
-from toggle.src.plugins.evaluation.lm_eval import LMHarness
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.framework.memory_profiler import MemoryProfiler
+from goldcrest.plugins.analysis.activation_metrics import ActivationMetricsPlugin
+from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+from goldcrest.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
+from goldcrest.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
 
 # H200 GPU Model Tiers

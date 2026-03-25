@@ -95,8 +95,8 @@ scripts map:
 All low-rank methods share the same `ModelConsolidator` (`consolidator.py:27`) workflow:
 
 ```python
-from src.framework.context import PipelineContext
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 
 ctx = PipelineContext(config={}, workspace_dir=tmp_path)
 ctx.state.model = model
@@ -246,7 +246,7 @@ Usage:
 
 ```python
 # From test_e2e_compression_algorithms.py:668-681
-from src.plugins.compression.pruning import PruningPlugin
+from goldcrest.plugins.compression.pruning import PruningPlugin
 
 pruning = PruningPlugin(
     name="pruning",

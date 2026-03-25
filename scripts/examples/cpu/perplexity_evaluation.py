@@ -43,9 +43,9 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 
 
 @dataclass

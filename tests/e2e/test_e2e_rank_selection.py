@@ -28,8 +28,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.framework.context import PipelineContext
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 from tests.e2e.conftest import param_count, run_forward, random_input, size_mb, DEVICE, MODEL_ID
 
 
@@ -76,8 +76,8 @@ class TestASVD:
 
     def test_asvd_pipeline_writes_scaling_factors(self, model, tokenizer, tmp_path, csv_logger):
         """CalibrationCollector → ActivationScaling should populate svd.scaling.* keys."""
-        from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
-        from src.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
+        from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+        from goldcrest.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -111,8 +111,8 @@ class TestASVD:
 
     def test_asvd_followed_by_svd_compression(self, model, tokenizer, tmp_path, csv_logger):
         """Full ASVD pipeline: calibrate → scale → SVD compress with use_activation_scaling."""
-        from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
-        from src.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
+        from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+        from goldcrest.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -194,8 +194,8 @@ class TestSVDLLM:
 
     def test_data_whitening_writes_cholesky_factors(self, model, tokenizer, tmp_path, csv_logger):
         """DataWhiteningPlugin should write svd.whitening.L/L_inv.* keys."""
-        from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
-        from src.plugins.compression.svd_data_whitening import DataWhiteningPlugin
+        from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+        from goldcrest.plugins.compression.svd_data_whitening import DataWhiteningPlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -226,7 +226,7 @@ class TestSVDLLM:
 
     def test_svdllm_full_pipeline(self, model, tokenizer, tmp_path, csv_logger):
         """Full SVD-LLM: calibrate → whiten → SVD compress with whitening enabled."""
-        from src.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
+        from goldcrest.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -299,7 +299,7 @@ class TestInformationFlow:
 
     def test_activation_metrics_computes_mi(self, model, tokenizer, tmp_path, csv_logger):
         """Run activation analysis and check that MI values are computed."""
-        from src.plugins.analysis.activation_metrics import ActivationMetricsPlugin
+        from goldcrest.plugins.analysis.activation_metrics import ActivationMetricsPlugin
 
         ctx = PipelineContext(
             config={
@@ -387,7 +387,7 @@ class TestEntropies:
 
     def test_histogram_entropy_computed(self, model, tokenizer, tmp_path, csv_logger):
         """Activation metrics should include histogram_entropy values."""
-        from src.plugins.analysis.activation_metrics import ActivationMetricsPlugin
+        from goldcrest.plugins.analysis.activation_metrics import ActivationMetricsPlugin
 
         ctx = PipelineContext(
             config={
@@ -449,7 +449,7 @@ class TestFisherInformation:
 
     def test_fisher_computes_per_layer_scores(self, model, tokenizer, tmp_path, csv_logger):
         """FisherInformationPlugin should store calibration.fisher.* in state."""
-        from src.plugins.analysis.fisher_information import FisherInformationPlugin
+        from goldcrest.plugins.analysis.fisher_information import FisherInformationPlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -477,7 +477,7 @@ class TestFisherInformation:
 
     def test_fisher_importance_scores(self, model, tokenizer, tmp_path, csv_logger):
         """Fisher importance scores should be in [0, 1] range."""
-        from src.plugins.analysis.fisher_information import FisherInformationPlugin
+        from goldcrest.plugins.analysis.fisher_information import FisherInformationPlugin
 
         ctx = PipelineContext(config={}, workspace_dir=tmp_path)
         ctx.state.model = model
@@ -520,7 +520,7 @@ class TestStableRank:
     def test_stable_rank_decides_per_layer_ranks(self, model, tokenizer, tmp_path, csv_logger):
         """LayerSVDRankDecider with stable_rank strategy should produce per-layer ranks."""
         import json
-        from src.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
+        from goldcrest.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
 
         # Create a plausible activation report
         per_layer = []
@@ -577,7 +577,7 @@ class TestStableRank:
 
     def test_stable_rank_drives_svd_compression(self, model, tokenizer, tmp_path, csv_logger):
         """Use stable-rank–decided ranks to actually SVD-compress the model."""
-        from src.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
+        from goldcrest.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
 
         per_layer = []
         for i in range(18):

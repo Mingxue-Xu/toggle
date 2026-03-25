@@ -4,7 +4,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-# ROOT="/home/mercy/cloud/act-remote-eval"
 
 CUDA_VISIBLE_DEVICES="" python "${ROOT}/scripts/examples/cpu/loop_svd_gemma3.py" \
   --config "${ROOT}/config/profiles/eval/svd_gemma3.yaml" \

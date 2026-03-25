@@ -35,11 +35,11 @@ import torch
 import yaml
 from transformers import AutoModelForCausalLM as AutoModel, AutoTokenizer
 
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.framework.context import PipelineContext
-from src.framework.layers import FactorLinear
-from src.plugins.compression.consolidator import ModelConsolidator
-from toggle.src.plugins.evaluation.lm_eval import LMHarness
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.layers import FactorLinear
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
 DEFAULT_CONFIG = "config/profiles/eval/svd_gemma3.yaml"
 DEFAULT_INPUT_CSV = "config/gemma3_ranks.csv"

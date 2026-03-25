@@ -4,18 +4,18 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from toggle.src.framework.context import PipelineContext
-from toggle.src.framework.plugins import Plugin, PluginRegistry
-from toggle.src.orchestration.executor import WorkflowExecutor
-from toggle.src.orchestration.workflow import Workflow, WorkflowStep
-from toggle.src.plugins.compression import (
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.plugins import Plugin, PluginRegistry
+from goldcrest.orchestration.executor import WorkflowExecutor
+from goldcrest.orchestration.workflow import Workflow, WorkflowStep
+from goldcrest.plugins.compression import (
     ActivationScalingPlugin,
     BinarySearchRankPlugin,
     CalibrationCollectorPlugin,
     ModelConsolidator,
 )
-from toggle.src.plugins.evaluation import LMHarness
-from toggle.src.plugins.evaluation import lm_eval as lm_eval_module
+from goldcrest.plugins.evaluation import LMHarness
+from goldcrest.plugins.evaluation import lm_eval as lm_eval_module
 
 
 class ToyTokenizer:

@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 
-from toggle.src.framework.context import PipelineContext
-from toggle.src.framework.plugins import Plugin, PluginRegistry
-from toggle.src.orchestration.executor import WorkflowExecutor
-from toggle.src.orchestration.workflow import Workflow, WorkflowStep
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.plugins import Plugin, PluginRegistry
+from goldcrest.orchestration.executor import WorkflowExecutor
+from goldcrest.orchestration.workflow import Workflow, WorkflowStep
 
 
 class TrackingPlugin(Plugin):

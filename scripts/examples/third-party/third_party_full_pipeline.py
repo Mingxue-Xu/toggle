@@ -43,9 +43,9 @@ if str(ROOT) not in sys.path:
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.plugins.compression.svd_backend import build_svd_backend, ColaSVDBackend, TorchSVDBackend
-from src.plugins.analysis.metric_utils import ExternalMetricsBackend, BasicMetricsBackend
+from goldcrest.framework.context import PipelineContext
+from goldcrest.plugins.compression.svd_backend import build_svd_backend, ColaSVDBackend, TorchSVDBackend
+from goldcrest.plugins.analysis.metric_utils import ExternalMetricsBackend, BasicMetricsBackend
 
 
 def _parse_args() -> argparse.Namespace:
@@ -331,7 +331,7 @@ def evaluate_model(
     print("\n[Pipeline] Step 6: Evaluating model")
 
     try:
-        from toggle.src.plugins.evaluation.lm_eval import LMHarness
+        from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
         evaluator = LMHarness(tasks=tasks, backend="auto")
         results = {}

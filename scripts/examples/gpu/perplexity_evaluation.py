@@ -48,9 +48,9 @@ from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 
-from src.framework.context import PipelineContext
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 
 
 # H200 GPU model tiers

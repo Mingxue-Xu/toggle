@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
 
 
 def add_project_root_to_sys_path() -> None:
-    """Include repo root on sys.path so src imports work when run directly."""
+    """Include repo root on sys.path so goldcrest imports work when run directly."""
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
 
@@ -56,8 +56,8 @@ add_project_root_to_sys_path()
 import torch
 from transformers import AutoTokenizer
 
-from src.framework.compressed_io import load_compressed_from_safetensors, Manifest
-from src.framework.memory_profiler import MemoryProfiler
+from goldcrest.framework.compressed_io import load_compressed_from_safetensors, Manifest
+from goldcrest.framework.memory_profiler import MemoryProfiler
 
 
 def _configure_linalg_backend():

@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 
-from toggle.src.plugins.models.loader import HuggingFaceModelLoader
+from goldcrest.plugins.models.loader import HuggingFaceModelLoader
 
 
 class FakeTokenizer:

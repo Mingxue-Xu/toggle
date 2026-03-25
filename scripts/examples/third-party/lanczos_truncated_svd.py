@@ -33,7 +33,7 @@ if str(ROOT) not in sys.path:
 
 import torch
 
-from src.plugins.compression.svd_backend import build_svd_backend
+from goldcrest.plugins.compression.svd_backend import build_svd_backend
 
 
 def _parse_args() -> argparse.Namespace:

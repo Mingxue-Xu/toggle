@@ -24,9 +24,13 @@ echo "Model: ${MODEL}"
 echo "Workspace: ${WORKSPACE}"
 echo "============================================================"
 
-# Activate virtual environment if available
-if [ -f "/home/mercy/act/env/bin/activate" ]; then
-    source /home/mercy/act/env/bin/activate
+# Activate an existing virtualenv or a repo-local .venv if available.
+if [ -n "${VIRTUAL_ENV:-}" ] && [ -f "${VIRTUAL_ENV}/bin/activate" ]; then
+    # shellcheck disable=SC1090
+    source "${VIRTUAL_ENV}/bin/activate"
+elif [ -f "${ROOT_DIR}/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source "${ROOT_DIR}/.venv/bin/activate"
 fi
 
 # Run analysis

@@ -1,6 +1,6 @@
-# Rank Selection in the Toggle Compression Pipeline
+# Rank Selection in the Goldcrest Compression Pipeline
 
-This document describes how to integrate rank-selection strategies into Toggle's
+This document describes how to integrate rank-selection strategies into Goldcrest's
 SVD compression pipeline. Three production-ready approaches are covered:
 
 1. **ASVD** — activation-aware SVD with PPL-based sensitivity probing
@@ -25,9 +25,9 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.layers import FactorLinear
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.layers import FactorLinear
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 ```
 
 Load a model and build the shared context:
@@ -96,7 +96,7 @@ and measuring the resulting perplexity delta. The full pipeline has four stages:
 ### Stage 1: Calibration Collection
 
 ```python
-from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
 
 targets = [
     "model.layers.0.mlp.gate_proj",
@@ -126,7 +126,7 @@ After execution the state contains:
 ### Stage 2: Activation Scaling
 
 ```python
-from src.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
+from goldcrest.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
 
 scaling = ActivationScalingPlugin(method="abs_mean", alpha=0.5, name="activation_scaling")
 scaling.initialize(context)
@@ -144,7 +144,7 @@ Available methods: `"abs_mean"`, `"abs_max"`, `"fisher"`.
 ### Stage 3: PPL Sensitivity Probing
 
 ```python
-from src.plugins.compression.svd_ppl_sensitivity import PPLSensitivityPlugin
+from goldcrest.plugins.compression.svd_ppl_sensitivity import PPLSensitivityPlugin
 
 sensitivity = PPLSensitivityPlugin(
     param_ratios=[0.5],
@@ -177,7 +177,7 @@ State written:
 ### Stage 4: Binary-Search Rank Allocation
 
 ```python
-from src.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
+from goldcrest.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
 
 ranker = BinarySearchRankPlugin(
     target_mode="param_ratio",
@@ -239,7 +239,7 @@ for target in targets:
 ### Saving the Compressed Model
 
 ```python
-from src.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
 
 manifest = {
     "type": "gemma_asvd_ppl_rank_selection",
@@ -264,7 +264,7 @@ already-compressed model state.
 ### Single-Plugin Usage
 
 ```python
-from src.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
+from goldcrest.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
 
 targets = [
     "model.layers.0.mlp.gate_proj",
@@ -350,7 +350,7 @@ V_original = L^{-1} @ V    (inverse after truncation)
 ### Saving the SVD-LLM Model
 
 ```python
-from src.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
 
 layers_replaced = compression_result.get("layers_replaced", [])
 layer_results = compression_result.get("layer_results", {}) or {}
@@ -398,7 +398,7 @@ block score, and returns a `layer_ranks` mapping keyed by bracket-index module
 paths such as `model.layers[0].self_attn.q_proj`.
 
 ```python
-from src.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
+from goldcrest.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
 
 # Build an activation report (normally produced by ActivationMetricsPlugin)
 per_layer = []
@@ -452,7 +452,7 @@ activation-aware scaling via `ActivationScalingPlugin(method="fisher")`, but
 there is no built-in Fisher-specific rank allocator in the referenced tests.
 
 ```python
-from src.plugins.analysis.fisher_information import FisherInformationPlugin
+from goldcrest.plugins.analysis.fisher_information import FisherInformationPlugin
 
 fisher = FisherInformationPlugin(n_samples=2, name="fisher")
 fisher.initialize(context)
@@ -529,8 +529,8 @@ git clone https://github.com/OFSkean/information_flow.git third_party/informatio
 ```
 
 ```python
-from src.plugins.analysis.activation_metrics import ActivationMetricsPlugin
-from src.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
+from goldcrest.plugins.analysis.activation_metrics import ActivationMetricsPlugin
+from goldcrest.plugins.analysis.layer_svd_rank_decider import LayerSVDRankDecider
 
 ctx = PipelineContext(
     config={

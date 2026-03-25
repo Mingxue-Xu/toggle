@@ -30,3 +30,10 @@
 - Bug fixes driven by e2e tests: removed dead code in compression plugins (svd, cp, tucker, tensor_train, tensorizer, base), consolidated model surgery logic in `ModelConsolidator`, and fixed `activation_metrics`/`metric_utils` metric computation.
 - Added docs: `algebra_backends.md`, `compression_algorithm.md`, `layer_types.md`, `logging.md`.
 - CSV logging integration across all e2e tests via `CSVLogger` fixtures in conftest.
+
+## 2026-03-24
+
+- Published to [PyPI](https://pypi.org/project/goldcrest/) as `goldcrest` v0.1.0 to avoid naming collision with existing `toggle` package.
+- Renamed package directory from `src/` to `goldcrest/`.
+- Added `pyproject.toml`, `LICENSE` for PyPI packaging, eebranded all documentation, docstrings, and class names from Toggle to Goldcrest.
+- Aligned rank selection algorithms across ASVD and SVD-LLM pipelines, rank-selection example scripts, and docs (`rank-selection.md`, `evaluation.md`, `profiling.md`).

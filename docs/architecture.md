@@ -1,10 +1,10 @@
-# Toggle Architecture
+# Goldcrest Architecture
 
-For a easy extension regarding different LLMs (Qwen, Gemma, Llama, etc) and various compression strategies (i.e. different low-rank strategies on different kinds of layers, what criteria should be used to choose ranks), toggle adopts a **factory pattern and plugin-based architecture**, which are typical object-oriented programming (OOP) design patterns. This design choice addresses two key redundancy concerns: 
+For a easy extension regarding different LLMs (Qwen, Gemma, Llama, etc) and various compression strategies (i.e. different low-rank strategies on different kinds of layers, what criteria should be used to choose ranks), Goldcrest adopts a **factory pattern and plugin-based architecture**, which are typical object-oriented programming (OOP) design patterns. This design choice addresses two key redundancy concerns: 
 - functions reused across different compression pipelines are abstracted into shared plugins; 
 - interfaces with third-party dependencies (e.g., HuggingFace transformers, lm-eval-harness) are isolated behind well-defined boundaries. 
 
-Powered by this OOP design, rather than hard-coding a single compression pipeline, Toggle treats each operation -- model loading, layer analysis, compression, evaluation -- as a self-contained plugin that communicates through a centralized event bus.
+Powered by this OOP design, rather than hard-coding a single compression pipeline, Goldcrest treats each operation -- model loading, layer analysis, compression, evaluation -- as a self-contained plugin that communicates through a centralized event bus.
 
 Furthermore, frequently accessed resources like model weights are managed independently through the `ModelManager` and `PipelineContext`, decoupling model lifecycle from any specific compression pipeline.
 
@@ -44,15 +44,15 @@ Furthermore, frequently accessed resources like model weights are managed indepe
 
 | Component | Module | Role |
 |---|---|---|
-| `PipelineOrchestrator` | `src/orchestration/orchestrator.py` | Manages workflows, plugins, and events |
-| `Workflow` / `WorkflowStep` | `src/orchestration/workflow.py` | Defines pipeline steps and their dependencies |
-| `WorkflowExecutor` | `src/orchestration/executor.py` | Executes workflow steps respecting dependency order |
-| `Plugin` | `src/framework/plugins.py` | Abstract base class with lifecycle management |
-| `PluginRegistry` | `src/framework/plugins.py` | Registration and discovery of plugins |
-| `EventBus` | `src/framework/events.py` | Thread-safe pub/sub event system |
-| `PipelineContext` | `src/framework/context.py` | Centralized execution context shared across plugins |
-| `PipelineState` / `StateManager` | `src/framework/state.py` | State persistence and management |
-| `ModelManager` | `src/framework/model_manager.py` | Unified model access, validation, and lifecycle management |
+| `PipelineOrchestrator` | `goldcrest/orchestration/orchestrator.py` | Manages workflows, plugins, and events |
+| `Workflow` / `WorkflowStep` | `goldcrest/orchestration/workflow.py` | Defines pipeline steps and their dependencies |
+| `WorkflowExecutor` | `goldcrest/orchestration/executor.py` | Executes workflow steps respecting dependency order |
+| `Plugin` | `goldcrest/framework/plugins.py` | Abstract base class with lifecycle management |
+| `PluginRegistry` | `goldcrest/framework/plugins.py` | Registration and discovery of plugins |
+| `EventBus` | `goldcrest/framework/events.py` | Thread-safe pub/sub event system |
+| `PipelineContext` | `goldcrest/framework/context.py` | Centralized execution context shared across plugins |
+| `PipelineState` / `StateManager` | `goldcrest/framework/state.py` | State persistence and management |
+| `ModelManager` | `goldcrest/framework/model_manager.py` | Unified model access, validation, and lifecycle management |
 
 ## Supported Compression Methods
 
@@ -88,11 +88,11 @@ This design enables loose coupling and makes it easy to add new functionality wi
 
 ## Resource Management
 
-Toggle separates model lifecycle management from pipeline execution through two complementary components: `PipelineContext` and `ModelManager`.
+Goldcrest separates model lifecycle management from pipeline execution through two complementary components: `PipelineContext` and `ModelManager`.
 
 ### PipelineContext
 
-`PipelineContext` (`src/framework/context.py`) is the centralized execution context shared across all plugins. It provides:
+`PipelineContext` (`goldcrest/framework/context.py`) is the centralized execution context shared across all plugins. It provides:
 
 - **Shared state** (`context.state`) -- Thread-safe `PipelineState` instance (protected by `RLock`) holding models, compression artifacts, evaluation results, and workflow status.
 - **Event communication** (`context.event_bus`) -- `EventBus` instance for inter-plugin pub/sub messaging.
@@ -114,7 +114,7 @@ data = context.get_resource("calibration_data")
 
 ### ModelManager
 
-`ModelManager` (`src/framework/model_manager.py`) provides a unified interface for model access and validation, decoupling model lifecycle from individual plugins. Key methods:
+`ModelManager` (`goldcrest/framework/model_manager.py`) provides a unified interface for model access and validation, decoupling model lifecycle from individual plugins. Key methods:
 
 | Method | Purpose |
 |--------|---------|
@@ -152,7 +152,7 @@ The `WorkflowExecutor` automatically resolves dependencies and executes steps in
 
 ## Configuration System
 
-Toggle uses a hierarchical YAML configuration system:
+Goldcrest uses a hierarchical YAML configuration system:
 
 1. **Base defaults** (`config/base/default.yaml`) -- Shared defaults for all pipelines
 2. **Method configs** (`config/h100_*.yaml`) -- Method-specific configurations
@@ -163,7 +163,7 @@ Configuration values cascade from base to specific, allowing you to override onl
 ## Directory Structure
 
 ```
-src/
+goldcrest/
 ├── config/
 │   └── loader.py             # YAML config loading and validation
 ├── framework/

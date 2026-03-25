@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.plugins.analysis.metric_utils import ExternalMetricsBackend, BasicMetricsBackend
+from goldcrest.plugins.analysis.metric_utils import ExternalMetricsBackend, BasicMetricsBackend
 
 
 def _parse_args() -> argparse.Namespace:

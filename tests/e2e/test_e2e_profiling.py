@@ -25,9 +25,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.framework.context import PipelineContext
-from src.framework.memory_profiler import MemoryProfiler
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.memory_profiler import MemoryProfiler
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 from tests.e2e.conftest import random_input, size_mb
 
 
@@ -463,7 +463,7 @@ class TestSubprocessIsolation:
 
     def test_subprocess_runs_function(self, model, tokenizer, tmp_path, csv_logger):
         """InferenceSubprocess should run a simple function and return result."""
-        from src.framework.inference_subprocess import InferenceSubprocess
+        from goldcrest.framework.inference_subprocess import InferenceSubprocess
 
         def simple_task():
             return {"status": "ok", "value": 42}
@@ -486,7 +486,7 @@ class TestSubprocessIsolation:
 
     def test_subprocess_timeout_handling(self, model, tokenizer, tmp_path, csv_logger):
         """Subprocess should raise TimeoutError for long-running tasks."""
-        from src.framework.inference_subprocess import InferenceSubprocess
+        from goldcrest.framework.inference_subprocess import InferenceSubprocess
 
         def slow_task():
             import time
@@ -510,7 +510,7 @@ class TestSubprocessIsolation:
 
     def test_subprocess_error_propagation(self, model, tokenizer, tmp_path, csv_logger):
         """Errors in subprocess should be propagated."""
-        from src.framework.inference_subprocess import InferenceSubprocess
+        from goldcrest.framework.inference_subprocess import InferenceSubprocess
 
         def failing_task():
             raise ValueError("deliberate test error")
@@ -532,7 +532,7 @@ class TestSubprocessIsolation:
 
     def test_subprocess_with_actual_inference(self, model, tokenizer, tmp_path, csv_logger):
         """Run actual model inference in a subprocess."""
-        from src.framework.inference_subprocess import InferenceSubprocess
+        from goldcrest.framework.inference_subprocess import InferenceSubprocess
 
         # Save model to disk so subprocess can load it
         save_dir = tmp_path / "model_for_subprocess"
@@ -571,7 +571,7 @@ class TestSubprocessIsolation:
 
     def test_profiler_subprocess_integration(self, model, tokenizer, tmp_path, csv_logger):
         """MemoryProfiler should work around subprocess execution."""
-        from src.framework.inference_subprocess import InferenceSubprocess
+        from goldcrest.framework.inference_subprocess import InferenceSubprocess
 
         mp = MemoryProfiler()
 

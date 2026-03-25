@@ -1,15 +1,23 @@
-# Toggle
+# Goldcrest
 
-LLM compression framework focusing on low-rank factorization (matrices and tensors), taking charge your whole experiment pipelines - **compression**, **evaluation**, **profiling** and **logging**.
+[![PyPI version](https://img.shields.io/pypi/v/goldcrest.svg)](https://pypi.org/project/goldcrest/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+LLM compression framework focusing on low-rank factorization (matrices and tensors), managing your whole experiment pipelines - **compression**, **evaluation**, **profiling** and **logging**.
 
 
 ### Latest
+
+**Mar. 24th**: Published to [pypi](https://pypi.org/project/goldcrest/), renamed to `goldcrest` (a tiny bird with bright crest) to avoid naming collision. 
 
 **Mar. 23rd**: Passed all the tests after debugging with agents (Claude Code + Codex) and PyCharm. A good IDE is pretty helpful for identifying dead code and keeping track of what is going on, especially when agents get high. Also added some feature documents.
 
 **Mar. 19th**: Fixed the identified slop with Codex. Working with agents of different "tastes" is helpful! More documentation is coming...
 
 **Mar. 18th**: The current codebase seems a bit slop, both human and agent (Claude Code) contributors are investigating it.
+
+
 ## Features
 
 | Category | Options |
@@ -25,10 +33,15 @@ LLM compression framework focusing on low-rank factorization (matrices and tenso
 ## Quick Start
 
 ### 1. Install
-In a conda environment or virtualenv, install with `pip`
 
 ```bash
-pip install -r requirements.txt
+pip install goldcrest
+```
+
+With optional dependencies:
+```bash
+pip install goldcrest[eval]    # lm-eval-harness integration
+pip install goldcrest[cola]    # CoLA algebra backend
 ```
 
 ### 2. Configure
@@ -145,7 +158,7 @@ GPU scripts for H100 and H200 workloads:
 ## Project Structure
 
 ```
-toggle/
+goldcrest/
 ├── config/                # Experiment configs plus base/ and profiles/
 │   ├── base/
 │   └── profiles/
@@ -157,7 +170,7 @@ toggle/
 │   ├── logs/              # Script execution logs
 │   └── utils/             # Utility scripts
 ├── tests/                 # Pytest regression and integration suite
-└── src/
+└── goldcrest/
     ├── config/            # Config loader
     ├── framework/         # Core framework (layers, state, IO)
     ├── orchestration/     # Pipeline orchestration
@@ -173,3 +186,17 @@ toggle/
 - [Architecture](docs/architecture.md) — Plugin-based design, EventBus, and workflow system
 - [Changelogs](docs/changelogs.md) — Notes on recent fixes
 - [Successful Runs](docs/successful_runs.md) — H200 GPU benchmark results (7 compression strategies, third-party tests)
+
+
+## Cite as
+```bibtext
+@software{xu_goldcrest,
+  author       = {Xu, Mingxue and Mandic, Danilo},
+  title        = {Goldcrest: Full-Pipeline LLM Compression Framework for Low-Rank Factorization},
+  month        = mar,
+  year         = 2026,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.19211420},
+  url          = {https://doi.org/10.5281/zenodo.19211420},
+}
+```

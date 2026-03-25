@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "goldcrest"
+version = "0.1.0"
+description = "A configuration-driven LLM compression framework using low-rank factorization and layer removal"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+readme = "README.md"
+authors = [{name = "Mingxue (Mercy) Xu"}]
+keywords = ["llm", "compression", "svd", "low-rank", "factorization", "tensor"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.0",
+    "transformers>=4.40",
+    "tensorly>=0.9",
+    "tensorly-torch>=0.5",
+    "accelerate>=1.0",
+    "datasets>=3.0",
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "tqdm>=4.60",
+    "psutil>=5.9",
+    "huggingface-hub>=0.20",
+    "click>=8.0",
+    "safetensors>=0.4",
+]
+
+[project.optional-dependencies]
+eval = ["lm_eval>=0.4", "evaluate>=0.4", "rouge_score>=0.1", "sacrebleu>=2.0"]
+cola = ["cola-ml"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1"]
+
+[project.urls]
+Homepage = "https://github.com/Mingxue-Xu/goldcrest"
+Repository = "https://github.com/Mingxue-Xu/goldcrest"
+Issues = "https://github.com/Mingxue-Xu/goldcrest/issues"
+
+[tool.setuptools.packages.find]
+include = ["goldcrest*"]

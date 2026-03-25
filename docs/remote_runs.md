@@ -1,6 +1,6 @@
 # Remote Runs Guide
 
-Instructions for running Toggle compression scripts on remote GPU servers (H200 140GB VRAM or equivalent).
+Instructions for running Goldcrest compression scripts on remote GPU servers (H200 140GB VRAM or equivalent).
 
 ---
 
@@ -16,7 +16,7 @@ source /path/to/env/bin/activate
 export HF_TOKEN=<your_token>
 
 # Navigate to codebase
-cd /path/to/toggle
+cd /path/to/goldcrest
 ```
 
 ### Required Dependencies
@@ -311,7 +311,7 @@ scripts/
 
 ### P0 (Blocking for Paper)
 
-1. Test coverage: `pytest --cov=src --cov-report=term-missing` (target 90%+)
+1. Test coverage: `pytest --cov=goldcrest --cov-report=term-missing` (target 90%+)
 2. Benchmark table: `benchmark_reproducibility.sh --tier mid --tier large --tier flagship`
 3. Compression ratio vs accuracy plots
 

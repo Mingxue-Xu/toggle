@@ -42,10 +42,10 @@ if str(ROOT) not in sys.path:
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.plugins.compression.consolidator import ModelConsolidator
-from toggle.src.plugins.evaluation.lm_eval import LMHarness
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
 
 @dataclass

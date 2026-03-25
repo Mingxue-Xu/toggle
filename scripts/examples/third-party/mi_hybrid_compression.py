@@ -36,8 +36,8 @@ if str(ROOT) not in sys.path:
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.plugins.compression.svd_backend import build_svd_backend
-from src.plugins.analysis.metric_utils import ExternalMetricsBackend, BasicMetricsBackend
+from goldcrest.plugins.compression.svd_backend import build_svd_backend
+from goldcrest.plugins.analysis.metric_utils import ExternalMetricsBackend, BasicMetricsBackend
 
 
 def _parse_args() -> argparse.Namespace:

@@ -2,16 +2,16 @@ import inspect
 
 import pytest
 
-from toggle.src.framework.context import PipelineContext
-from toggle.src.plugins.compression import (
+from goldcrest.framework.context import PipelineContext
+from goldcrest.plugins.compression import (
     ActivationScalingPlugin,
     BinarySearchRankPlugin,
     CalibrationCollectorPlugin,
     ModelConsolidator,
     PPLSensitivityPlugin,
 )
-from toggle.src.plugins.evaluation import CompressedModelProfile, LMHarness, UncompressedModelProfile
-from toggle.src.plugins.models.loader import HuggingFaceModelLoader, LocalModelLoader
+from goldcrest.plugins.evaluation import CompressedModelProfile, LMHarness, UncompressedModelProfile
+from goldcrest.plugins.models.loader import HuggingFaceModelLoader, LocalModelLoader
 
 
 @pytest.mark.parametrize(

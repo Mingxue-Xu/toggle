@@ -39,11 +39,11 @@ import torch
 from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.framework.context import PipelineContext
-from src.framework.layers import FactorLinear
-from src.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
-from src.plugins.evaluation.lm_eval import LMHarness
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.layers import FactorLinear
+from goldcrest.plugins.compression.svdllm_pipeline import SVDLLMPipelinePlugin
+from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
 MODEL_ID = "google/gemma-3-270m-it"
 

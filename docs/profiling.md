@@ -1,7 +1,7 @@
-# Profiling in the Toggle Compression Pipeline
+# Profiling in the Goldcrest Compression Pipeline
 
 This document describes how to profile memory usage, latency, and process
-isolation during model compression using Toggle's profiling infrastructure.
+isolation during model compression using Goldcrest's profiling infrastructure.
 Six capabilities are covered:
 
 1. **RSS memory** — resident set size snapshots and deltas
@@ -47,9 +47,9 @@ The object-level alias `gpu_reserved` points to `gpu_cached_mb`.
 ```python
 import time
 import torch
-from src.framework.context import PipelineContext
-from src.framework.memory_profiler import MemoryProfiler
-from src.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.memory_profiler import MemoryProfiler
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
 ```
 
 Load a model and create a pipeline context (shared across all examples):
@@ -222,7 +222,7 @@ Notes:
 - With `cleanup_before=True` (the default), `profile_execution` runs `torch.cuda.empty_cache()` before the pre-execution snapshot.
 - On CPU-only runs, all GPU fields remain `0.0`.
 
-**Source:** `src/framework/memory_profiler.py`, `tests/e2e-codex/test_evaluation_and_profiling.py`
+**Source:** `goldcrest/framework/memory_profiler.py`, `tests/e2e-codex/test_evaluation_and_profiling.py`
 
 ---
 
@@ -409,7 +409,7 @@ This is useful for accurate memory profiling without contamination.
 ### Basic usage
 
 ```python
-from src.framework.inference_subprocess import InferenceSubprocess
+from goldcrest.framework.inference_subprocess import InferenceSubprocess
 
 def simple_task():
     return {"status": "ok", "value": 42}

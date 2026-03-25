@@ -4,7 +4,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-# ROOT="/home/mercy/cloud/act-remote-eval"
 
 # Set CUDA_VISIBLE_DEVICES to control GPU/CPU selection (empty for CPU).
 python "${ROOT}/scripts/examples/cpu/loop_svd_qwen3.py" \

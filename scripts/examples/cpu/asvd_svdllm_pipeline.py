@@ -50,16 +50,16 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.framework.context import PipelineContext
-from src.framework.compressed_io import save_compressed_to_safetensors
-from src.plugins.compression.calibration_collector import CalibrationCollectorPlugin
-from src.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
-from src.plugins.compression.svd_data_whitening import DataWhiteningPlugin
-from src.plugins.compression.svd_ppl_sensitivity import PPLSensitivityPlugin
-from src.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
-from src.plugins.compression.svd_closed_form_update import ClosedFormUpdatePlugin
-from src.plugins.compression.consolidator import ModelConsolidator
-from toggle.src.plugins.evaluation.lm_eval import LMHarness
+from goldcrest.framework.context import PipelineContext
+from goldcrest.framework.compressed_io import save_compressed_to_safetensors
+from goldcrest.plugins.compression.calibration_collector import CalibrationCollectorPlugin
+from goldcrest.plugins.compression.svd_activation_scaling import ActivationScalingPlugin
+from goldcrest.plugins.compression.svd_data_whitening import DataWhiteningPlugin
+from goldcrest.plugins.compression.svd_ppl_sensitivity import PPLSensitivityPlugin
+from goldcrest.plugins.compression.svd_binary_search_rank import BinarySearchRankPlugin
+from goldcrest.plugins.compression.svd_closed_form_update import ClosedFormUpdatePlugin
+from goldcrest.plugins.compression.consolidator import ModelConsolidator
+from goldcrest.plugins.evaluation.lm_eval import LMHarness
 
 
 class CalibrationDataset(Dataset):
